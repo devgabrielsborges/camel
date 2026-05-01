@@ -48,8 +48,14 @@ AggregatedMetric  # noqa: B018
 CategoryBreakdown  # noqa: B018
 
 # Scorer factories
-create_deterministic_scorer  # noqa: B018
-create_llm_judge_scorer  # noqa: B018
+create_scorers  # noqa: B018
+
+# MLflow @scorer functions
+token_overlap_f1  # noqa: B018
+class_exact_match  # noqa: B018
+refusal_detection  # noqa: B018
+get_deterministic_scorers  # noqa: B018
+get_llm_judge_scorers  # noqa: B018
 
 # Tool function params — required by agents SDK
 ctx  # noqa: B018

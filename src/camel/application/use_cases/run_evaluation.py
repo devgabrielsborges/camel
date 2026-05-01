@@ -2,6 +2,9 @@ from __future__ import annotations
 
 import logging
 from collections import defaultdict
+from typing import Any
+
+from mlflow.entities import Feedback
 
 from camel.domain.entities.evaluation import Evaluation, EvaluationStatus
 from camel.domain.services.aggregation import (
@@ -11,24 +14,30 @@ from camel.domain.services.aggregation import (
     aggregate_scores,
 )
 from camel.domain.value_objects.score import Score
-from camel.infrastructure.adapters.mlflow_scorer import (
-    DeterministicScorer,
-    LLMJudgeScorer,
-)
 from camel.infrastructure.adapters.mlflow_tracker import MLflowTrackerAdapter
 
 logger = logging.getLogger(__name__)
 
 
+def _feedback_to_score(feedback: Feedback, fallback_name: str) -> Score:
+    name = feedback.name if feedback.name != "feedback" else fallback_name
+    raw = feedback.feedback.value if feedback.feedback else None
+    if isinstance(raw, bool):
+        value: float | bool = raw
+    elif isinstance(raw, (int, float)):
+        value = float(raw)
+    else:
+        value = 0.0
+    return Score(scorer_name=name, value=value, rationale=feedback.rationale)
+
+
 class RunEvaluation:
     def __init__(
         self,
-        deterministic_scorer: DeterministicScorer,
-        llm_scorer: LLMJudgeScorer | None,
+        scorers: list[Any],
         tracker_adapter: MLflowTrackerAdapter,
     ) -> None:
-        self._det_scorer = deterministic_scorer
-        self._llm_scorer = llm_scorer
+        self._scorers = scorers
         self._tracker = tracker_adapter
 
     def execute(
@@ -55,18 +64,31 @@ class RunEvaluation:
                         "chosen_class_id": record.chosen_class_id,
                     }
 
-                    det_scores = self._det_scorer.score(inputs, outputs, expectations)
-                    for s in det_scores:
-                        trace_obj.add_score(s)
-                        all_scores.append(s)
-                        scores_by_category[record.data_category_qa].append(s)
-
-                    if self._llm_scorer is not None:
-                        llm_scores = self._llm_scorer.score(inputs, outputs, expectations)
-                        for s in llm_scores:
-                            trace_obj.add_score(s)
-                            all_scores.append(s)
-                            scores_by_category[record.data_category_qa].append(s)
+                    for scorer_fn in self._scorers:
+                        try:
+                            result = scorer_fn(
+                                inputs=inputs,
+                                outputs=outputs,
+                                expectations=expectations,
+                            )
+                            if isinstance(result, Feedback):
+                                score = _feedback_to_score(
+                                    result, getattr(scorer_fn, "name", "unknown")
+                                )
+                            else:
+                                score = Score(
+                                    scorer_name=getattr(scorer_fn, "name", "unknown"),
+                                    value=result if result is not None else 0.0,
+                                )
+                            trace_obj.add_score(score)
+                            all_scores.append(score)
+                            scores_by_category[record.data_category_qa].append(score)
+                        except Exception:
+                            logger.warning(
+                                "Scorer %s failed",
+                                getattr(scorer_fn, "name", "unknown"),
+                                exc_info=True,
+                            )
 
                     scored_count += 1
 

@@ -1,14 +1,17 @@
 from __future__ import annotations
 
-from typing import Protocol
-
-from camel.domain.value_objects.score import Score
+from typing import Any, Protocol
 
 
 class ScorerPort(Protocol):
-    def score(
+    """A callable scorer compatible with MLflow's @scorer interface."""
+
+    name: str
+
+    def __call__(
         self,
-        inputs: dict[str, str],
-        outputs: dict[str, str],
-        expectations: dict[str, str],
-    ) -> list[Score]: ...
+        *,
+        inputs: dict[str, Any] | None = None,
+        outputs: dict[str, Any] | None = None,
+        expectations: dict[str, Any] | None = None,
+    ) -> Any: ...
