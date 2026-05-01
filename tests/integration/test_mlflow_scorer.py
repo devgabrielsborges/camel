@@ -35,21 +35,34 @@ class TestTokenOverlapF1Scorer:
 
 
 class TestClassExactMatchScorer:
-    def test_match(self) -> None:
+    def test_match_by_class_name(self) -> None:
         result = class_exact_match(
-            outputs={"response": "This is classified as P1."},
-            expectations={"chosen_class_id": "P1"},
+            outputs={"response": "Sobre pagamento, aceitamos cartões."},
+            expectations={
+                "chosen_class_id": "A1",
+                "classes": [{"id": "A1", "class": "pagamento"}],
+            },
         )
         assert isinstance(result, Feedback)
         assert result.name == "class_exact_match"
         assert result.feedback.value is True
 
-    def test_no_expected_class(self) -> None:
+    def test_no_expected_class_returns_none(self) -> None:
         result = class_exact_match(
             outputs={"response": "some answer"},
             expectations={"chosen_class_id": ""},
         )
-        assert result.feedback.value is False
+        assert result.feedback.value is None
+
+    def test_class_not_in_list_returns_none(self) -> None:
+        result = class_exact_match(
+            outputs={"response": "some answer"},
+            expectations={
+                "chosen_class_id": "P1",
+                "classes": [{"id": "A1", "class": "pagamento"}],
+            },
+        )
+        assert result.feedback.value is None
 
 
 class TestRefusalDetectionScorer:
