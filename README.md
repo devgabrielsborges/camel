@@ -82,12 +82,33 @@ camel prepare --help
 
 | Option | Description | Default |
 |--------|-------------|---------|
+| `--model` / `-m` | Model name override | `$OPENAI_MODEL` |
 | `--limit` | Max rows to process | all |
 | `--batch-size` | Rows per batch | `$BATCH_SIZE` / 50 |
 | `--concurrency` | Max concurrent calls | `$CONCURRENCY` / 10 |
 | `--no-llm-judge` | Skip LLM scorers | false |
 | `--experiment` | MLflow experiment name | WeniEval |
 | `--output` | CSV output path | `$RESULTS_DIR`/predictions.csv |
+
+### LiteLLM Support
+
+Set `LLM_PROVIDER=litellm` in `.env` to use any provider supported by
+[LiteLLM](https://docs.litellm.ai/docs/providers). The `--model` flag
+(or `OPENAI_MODEL` env var) uses the `provider/model` format:
+
+```bash
+# Anthropic
+camel run --model anthropic/claude-3-haiku-20240307 --limit 10
+
+# Azure OpenAI
+camel run --model azure/gpt-4o --limit 10
+
+# Groq
+camel infer --model groq/llama3-8b-8192 --limit 10
+```
+
+When using `LLM_PROVIDER=openai` (default), the model name is passed directly
+to the OpenAI Agents SDK.
 
 ## Scorers
 
@@ -127,7 +148,7 @@ Checks: black, isort, autoflake, mypy (strict), vulture.
 
 All configuration via `.env`. See `.env.example` for the full list.
 Key variables: `OPENAI_API_KEY`, `OPENAI_MODEL`, `JUDGE_MODEL`,
-`MLFLOW_TRACKING_URI`, `BATCH_SIZE`, `CONCURRENCY`.
+`LLM_PROVIDER`, `MLFLOW_TRACKING_URI`, `BATCH_SIZE`, `CONCURRENCY`.
 
 ## Output CSV
 

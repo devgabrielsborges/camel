@@ -60,6 +60,10 @@ export  # noqa: B018
 # Settings fields
 experiment_name  # noqa: B018
 dataset_name  # noqa: B018
+llm_provider  # noqa: B018
+
+# LiteLLM adapter
+LiteLLMAgentAdapter  # noqa: B018
 
 # Aggregation dataclasses
 AggregatedMetric  # noqa: B018
