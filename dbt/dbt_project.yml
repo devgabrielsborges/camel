@@ -5,6 +5,9 @@ profile: camel
 model-paths: ["models"]
 seed-paths: ["seeds"]
 
+vars:
+  raw_parquet_path: "../data/raw/train.parquet"
+
 models:
   camel_eval:
     bronze:

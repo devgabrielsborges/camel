@@ -1,1 +1,1 @@
-select * from read_parquet('../data/raw/train.parquet')
+select * from read_parquet('{{ var("raw_parquet_path") }}')

@@ -1,12 +1,19 @@
 from __future__ import annotations
 
-from pydantic_settings import BaseSettings
+from pydantic import Field
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
-class Settings(BaseSettings):
+class Settings(BaseSettings):  # type: ignore[misc]
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+
     mlflow_tracking_uri: str = "http://localhost:5000"
 
-    openai_api_key: str
+    openai_api_key: str = Field(min_length=1)
     openai_model: str = "gpt-4o-mini"
     judge_model: str = "gpt-4o-mini"
 
@@ -21,9 +28,7 @@ class Settings(BaseSettings):
     aws_secret_access_key: str = "minioadmin"
     mlflow_s3_endpoint_url: str = "http://localhost:9000"
 
-    dataset_path: str = "data/camel.duckdb"
-    parquet_path: str = "data/raw/train.parquet"
+    duckdb_path: str = "data/camel.duckdb"
+    raw_parquet_path: str = "data/raw/train.parquet"
     prompt_template_path: str = "prompts/system_prompt.j2"
     results_dir: str = "results"
-
-    model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
