@@ -28,6 +28,9 @@ class Settings(BaseSettings):
     aws_secret_access_key: str = "minioadmin"
     mlflow_s3_endpoint_url: str = "http://localhost:9000"
 
+    experiment_name: str = "WeniEval"
+    dataset_name: str = "weni_eval_dataset"
+
     duckdb_path: str = "data/camel.duckdb"
     raw_parquet_path: str = "data/raw/train.parquet"
     prompt_template_path: str = "prompts/system_prompt.j2"

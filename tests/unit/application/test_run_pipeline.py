@@ -14,6 +14,7 @@ from camel.domain.services.aggregation import AggregatedMetric
 from camel.domain.value_objects import TokenUsage
 from camel.domain.value_objects.dataset_record import DatasetRecord
 from camel.domain.value_objects.model_config import ModelConfig
+from camel.domain.value_objects.prompt_template import PromptTemplate
 from camel.domain.value_objects.score import Score
 
 
@@ -40,7 +41,7 @@ def _make_evaluation_after_inference(
         eval_model=ModelConfig(model_name="gpt-4o-mini", temperature=0.0),
         prompt_version="prompts:/test/1",
         dataset_name="test_dataset",
-        status=EvaluationStatus.EVALUATING,
+        status=EvaluationStatus.INFERRING,
     )
     session = Session(
         session_id=record.id,
@@ -50,6 +51,21 @@ def _make_evaluation_after_inference(
     session.add_trace(_make_trace(record.id))
     evaluation.add_session(session)
     return evaluation
+
+
+@pytest.fixture()
+def mock_tracker() -> MagicMock:
+    mock = MagicMock()
+    mock.start_run.return_value = "run-123"
+    mock.register_prompt.return_value = "prompts:/test/1"
+    return mock
+
+
+@pytest.fixture()
+def mock_register_dataset() -> MagicMock:
+    mock = MagicMock()
+    mock.execute.return_value = 10
+    return mock
 
 
 @pytest.fixture()
@@ -69,6 +85,8 @@ def mock_export_results() -> MagicMock:
 
 @pytest.mark.asyncio
 async def test_pipeline_executes_all_phases(
+    mock_tracker: MagicMock,
+    mock_register_dataset: MagicMock,
     mock_run_inference: AsyncMock,
     mock_run_evaluation: MagicMock,
     mock_export_results: MagicMock,
@@ -82,9 +100,16 @@ async def test_pipeline_executes_all_phases(
     mock_export_results.execute.return_value = 1
 
     pipeline = RunPipeline(
+        tracker_adapter=mock_tracker,
+        register_dataset=mock_register_dataset,
         run_inference=mock_run_inference,
         run_evaluation=mock_run_evaluation,
         export_results=mock_export_results,
+    )
+
+    prompt_tpl = PromptTemplate(
+        template_path="prompts/system_prompt.j2",
+        version_uri="",
     )
 
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -99,18 +124,27 @@ async def test_pipeline_executes_all_phases(
                 dataset_name="test_dataset",
             ),
             categories=["positivo"],
-            run_id="run-123",
             output_path=output_path,
+            prompt_template=prompt_tpl,
         )
 
+    mock_tracker.register_prompt.assert_called_once()
+    mock_register_dataset.execute.assert_called_once()
+    mock_tracker.start_run.assert_called_once()
+    mock_tracker.enable_autolog.assert_called_once()
     mock_run_inference.execute.assert_awaited_once()
     mock_run_evaluation.execute.assert_called_once()
     mock_export_results.execute.assert_called_once()
+    mock_tracker.end_run.assert_called_once()
+    mock_tracker.disable_autolog.assert_called_once()
+    assert result.run_id == "run-123"
     assert result.evaluation.status == EvaluationStatus.EVALUATING
 
 
 @pytest.mark.asyncio
 async def test_pipeline_halts_on_inference_failure(
+    mock_tracker: MagicMock,
+    mock_register_dataset: MagicMock,
     mock_run_inference: AsyncMock,
     mock_run_evaluation: MagicMock,
     mock_export_results: MagicMock,
@@ -118,6 +152,8 @@ async def test_pipeline_halts_on_inference_failure(
     mock_run_inference.execute.side_effect = RuntimeError("Inference failed")
 
     pipeline = RunPipeline(
+        tracker_adapter=mock_tracker,
+        register_dataset=mock_register_dataset,
         run_inference=mock_run_inference,
         run_evaluation=mock_run_evaluation,
         export_results=mock_export_results,
@@ -133,16 +169,19 @@ async def test_pipeline_halts_on_inference_failure(
                 dataset_name="test_dataset",
             ),
             categories=["positivo"],
-            run_id="run-123",
             output_path="/tmp/test.csv",
         )
 
     mock_run_evaluation.execute.assert_not_called()
     mock_export_results.execute.assert_not_called()
+    mock_tracker.end_run.assert_called_once()
+    mock_tracker.disable_autolog.assert_called_once()
 
 
 @pytest.mark.asyncio
 async def test_pipeline_halts_on_evaluation_failure(
+    mock_tracker: MagicMock,
+    mock_register_dataset: MagicMock,
     mock_run_inference: AsyncMock,
     mock_run_evaluation: MagicMock,
     mock_export_results: MagicMock,
@@ -153,6 +192,8 @@ async def test_pipeline_halts_on_evaluation_failure(
     mock_run_evaluation.execute.side_effect = RuntimeError("Evaluation failed")
 
     pipeline = RunPipeline(
+        tracker_adapter=mock_tracker,
+        register_dataset=mock_register_dataset,
         run_inference=mock_run_inference,
         run_evaluation=mock_run_evaluation,
         export_results=mock_export_results,
@@ -168,15 +209,17 @@ async def test_pipeline_halts_on_evaluation_failure(
                 dataset_name="test_dataset",
             ),
             categories=["positivo"],
-            run_id="run-123",
             output_path="/tmp/test.csv",
         )
 
     mock_export_results.execute.assert_not_called()
+    mock_tracker.end_run.assert_called_once()
 
 
 @pytest.mark.asyncio
 async def test_pipeline_halts_on_export_failure(
+    mock_tracker: MagicMock,
+    mock_register_dataset: MagicMock,
     mock_run_inference: AsyncMock,
     mock_run_evaluation: MagicMock,
     mock_export_results: MagicMock,
@@ -190,6 +233,8 @@ async def test_pipeline_halts_on_export_failure(
     mock_export_results.execute.side_effect = OSError("Disk full")
 
     pipeline = RunPipeline(
+        tracker_adapter=mock_tracker,
+        register_dataset=mock_register_dataset,
         run_inference=mock_run_inference,
         run_evaluation=mock_run_evaluation,
         export_results=mock_export_results,
@@ -205,13 +250,14 @@ async def test_pipeline_halts_on_export_failure(
                 dataset_name="test_dataset",
             ),
             categories=["positivo"],
-            run_id="run-123",
             output_path="/tmp/test.csv",
         )
 
 
 @pytest.mark.asyncio
 async def test_pipeline_passes_limit_to_inference(
+    mock_tracker: MagicMock,
+    mock_register_dataset: MagicMock,
     mock_run_inference: AsyncMock,
     mock_run_evaluation: MagicMock,
     mock_export_results: MagicMock,
@@ -225,6 +271,8 @@ async def test_pipeline_passes_limit_to_inference(
     mock_export_results.execute.return_value = 1
 
     pipeline = RunPipeline(
+        tracker_adapter=mock_tracker,
+        register_dataset=mock_register_dataset,
         run_inference=mock_run_inference,
         run_evaluation=mock_run_evaluation,
         export_results=mock_export_results,
@@ -242,7 +290,6 @@ async def test_pipeline_passes_limit_to_inference(
                 dataset_name="test_dataset",
             ),
             categories=["positivo"],
-            run_id="run-123",
             output_path=output_path,
             limit=5,
         )

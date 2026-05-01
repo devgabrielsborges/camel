@@ -53,7 +53,6 @@ class RunInference:
         prompt_version_uri: str = "",
     ) -> Evaluation:
         evaluation.transition_to(EvaluationStatus.INFERRING)
-        run_id = self._tracker.start_run(evaluation)
 
         try:
             rows = self._dataset.load_filtered(categories)
@@ -99,8 +98,6 @@ class RunInference:
                     session.add_trace(trace_obj)
                     evaluation.add_session(session)
 
-                    self._tracker.log_trace(run_id, trace_obj)
-
                 await self._agent.flush()
                 gc.collect()
 
@@ -110,17 +107,8 @@ class RunInference:
                     limit or "all",
                 )
 
-            self._tracker.log_metrics(
-                run_id,
-                {"total_sessions": float(len(evaluation.sessions))},
-            )
-
         except Exception:
             evaluation.transition_to(EvaluationStatus.FAILED)
-            self._tracker.end_run(run_id)
             raise
-        else:
-            evaluation.transition_to(EvaluationStatus.EVALUATING)
-            self._tracker.end_run(run_id)
 
         return evaluation

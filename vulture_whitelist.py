@@ -15,6 +15,10 @@ run_id  # noqa: B018
 template  # noqa: B018
 records  # noqa: B018
 metrics  # noqa: B018
+enable_autolog  # noqa: B018
+disable_autolog  # noqa: B018
+search_traces  # noqa: B018
+set_run_tags  # noqa: B018
 
 # DatasetRepository
 categories  # noqa: B018
@@ -29,7 +33,9 @@ model_config  # noqa: B018
 
 # CLI infer_cmd — typer option names
 infer  # noqa: B018
-register  # noqa: B018
+
+# CLI run_cmd
+run_pipeline  # noqa: B018
 
 # Domain methods consumed by use cases
 add_trace  # noqa: B018
@@ -47,6 +53,13 @@ gold  # noqa: B018
 # CLI evaluate_cmd
 evaluate  # noqa: B018
 no_llm_judge  # noqa: B018
+
+# CLI export_cmd
+export  # noqa: B018
+
+# Settings fields
+experiment_name  # noqa: B018
+dataset_name  # noqa: B018
 
 # Aggregation dataclasses
 AggregatedMetric  # noqa: B018

@@ -51,7 +51,6 @@ def mock_agent() -> AsyncMock:
 @pytest.fixture()
 def mock_tracker() -> MagicMock:
     mock = MagicMock()
-    mock.start_run.return_value = "run-123"
     return mock
 
 
@@ -93,9 +92,36 @@ async def test_execute_processes_records(
         categories=["positivo"],
     )
 
-    assert result.status == EvaluationStatus.EVALUATING
+    assert result.status == EvaluationStatus.INFERRING
     assert len(result.sessions) == 1
     assert result.sessions[0].session_id == sample_dataset_record.id
+
+
+@pytest.mark.asyncio
+async def test_execute_does_not_manage_run_lifecycle(
+    mock_dataset: MagicMock,
+    mock_agent: AsyncMock,
+    mock_tracker: MagicMock,
+    mock_renderer: MagicMock,
+    sample_dataset_record: DatasetRecord,
+) -> None:
+    mock_dataset.load_filtered.return_value = iter([sample_dataset_record])
+    mock_agent.invoke.return_value = _make_trace(sample_dataset_record.id)
+
+    use_case = RunInference(
+        dataset_adapter=mock_dataset,
+        agent_adapter=mock_agent,
+        tracker_adapter=mock_tracker,
+        prompt_renderer=mock_renderer,
+        batch_size=10,
+        concurrency=5,
+    )
+
+    evaluation = _make_evaluation()
+    await use_case.execute(evaluation=evaluation, categories=["positivo"])
+
+    mock_tracker.start_run.assert_not_called()
+    mock_tracker.end_run.assert_not_called()
 
 
 @pytest.mark.asyncio

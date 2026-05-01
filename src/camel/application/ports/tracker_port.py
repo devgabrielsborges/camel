@@ -1,18 +1,21 @@
 from __future__ import annotations
 
-from typing import Protocol
+from typing import Any, Protocol
 
 from camel.domain.entities.evaluation import Evaluation
-from camel.domain.entities.trace import Trace
 from camel.domain.value_objects.prompt_template import PromptTemplate
 
 
 class TrackerPort(Protocol):
+    def enable_autolog(self) -> None: ...
+
+    def disable_autolog(self) -> None: ...
+
     def start_run(self, evaluation: Evaluation) -> str: ...
 
     def end_run(self, run_id: str) -> None: ...
 
-    def log_trace(self, run_id: str, trace: Trace) -> None: ...
+    def set_run_tags(self, run_id: str, tags: dict[str, str]) -> None: ...
 
     def register_prompt(self, template: PromptTemplate) -> str: ...
 
@@ -23,3 +26,9 @@ class TrackerPort(Protocol):
     ) -> None: ...
 
     def log_metrics(self, run_id: str, metrics: dict[str, float]) -> None: ...
+
+    def search_traces(
+        self,
+        experiment_name: str,
+        run_id: str,
+    ) -> list[dict[str, Any]]: ...
