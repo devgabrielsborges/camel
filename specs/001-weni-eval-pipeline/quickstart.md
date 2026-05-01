@@ -47,29 +47,20 @@ curl http://localhost:5000/health
 
 ## 4. Prepare Data
 
-Ensure the dataset is at `data/raw/train.parquet`. If not present, download:
+Download the dataset and run dbt bronze + silver transformations:
 
 ```bash
-uv run python -c "
-from datasets import load_dataset
-ds = load_dataset('Weni/WeniEval-Benchmark-2.0.0', split='train')
-ds.to_parquet('data/raw/train.parquet')
-"
-```
-
-## 5. Run dbt Transformations
-
-```bash
-cd dbt && uv run dbt run && cd ..
+camel prepare
 ```
 
 This creates the bronze (raw) and silver (filtered + validated) tables in
-`data/camel.duckdb`.
+`data/camel.duckdb`. Gold models are disabled by default (they require
+`results/predictions.csv` from a pipeline run).
 
-## 6. Run the Full Pipeline
+## 5. Run the Full Pipeline
 
 ```bash
-uv run camel run --limit 100
+camel run --limit 100
 ```
 
 This executes:
@@ -77,7 +68,15 @@ This executes:
 2. **Evaluation**: Scores traces with deterministic + LLM-as-judge scorers
 3. **Export**: Writes results to `results/predictions.csv`
 
-## 7. View Results
+## 5b. Build Gold dbt Models (after pipeline)
+
+```bash
+camel prepare --skip-download --gold
+```
+
+This joins inference results and evaluation scores into analytical tables.
+
+## 6. View Results
 
 ### MLflow UI
 
@@ -94,14 +93,9 @@ head results/predictions.csv
 Run phases independently:
 
 ```bash
-# Inference only (stores traces)
-uv run camel infer --limit 50 --batch-size 25
-
-# Evaluate existing traces (requires --run-id from inference output)
-uv run camel evaluate --run-id <mlflow-run-id>
-
-# Export to CSV (requires --run-id from inference output)
-uv run camel export --run-id <mlflow-run-id> --output results/my_run.csv
+camel infer --limit 50 --batch-size 25
+camel evaluate --run-id <mlflow-run-id>
+camel export --run-id <mlflow-run-id> --output results/my_run.csv
 ```
 
 ## Full Dataset Run
@@ -109,7 +103,7 @@ uv run camel export --run-id <mlflow-run-id> --output results/my_run.csv
 Remove `--limit` to process all 3,887 rows:
 
 ```bash
-uv run camel run
+camel run
 ```
 
 Estimated time: ~30 minutes (depends on API rate limits).
@@ -123,4 +117,4 @@ Estimated cost: ~$2-5 for inference + ~$1-3 for LLM judges (gpt-4o-mini).
 | OpenAI rate limit | Reduce concurrency: `--concurrency 5` |
 | OOM | Reduce batch size: `--batch-size 20` |
 | MinIO bucket missing | Run `docker compose restart minio-init` |
-| dbt errors | Ensure `data/raw/train.parquet` exists before `dbt run` |
+| dbt errors | Run `camel prepare` to download the dataset first |

@@ -39,6 +39,11 @@ validate_output  # noqa: B018
 add_score  # noqa: B018
 is_single_turn  # noqa: B018
 
+# CLI prepare_cmd
+prepare  # noqa: B018
+skip_download  # noqa: B018
+gold  # noqa: B018
+
 # CLI evaluate_cmd
 evaluate  # noqa: B018
 no_llm_judge  # noqa: B018

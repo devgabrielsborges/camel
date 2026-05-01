@@ -31,25 +31,21 @@ git clone <repo-url> camel && cd camel
 uv sync
 cp .env.example .env
 # Edit .env and set OPENAI_API_KEY
-```
-
-## Infrastructure
-
-```bash
 docker compose up -d
 ```
-
-Services started: PostgreSQL (MLflow backend), MinIO (artifacts), MLflow UI.
 
 ## Data Preparation
 
 ```bash
-uv run python -c "
-from datasets import load_dataset
-ds = load_dataset('Weni/WeniEval-Benchmark-2.0.0', split='train')
-ds.to_parquet('data/raw/train.parquet')
-"
-cd dbt && uv run dbt run && cd ..
+camel prepare
+```
+
+Downloads the dataset and runs dbt bronze + silver transformations.
+
+After a pipeline run, build gold analytical models:
+
+```bash
+camel prepare --skip-download --gold
 ```
 
 ## Usage
@@ -57,34 +53,41 @@ cd dbt && uv run dbt run && cd ..
 ### Full Pipeline
 
 ```bash
-uv run camel run --limit 100
+camel run --limit 100
 ```
 
-Runs inference, evaluation, and export in sequence. Results written to
-`results/predictions.csv`.
+Runs inference, evaluation, and export in sequence.
+Results written to `$RESULTS_DIR/predictions.csv`.
 
 ### Individual Commands
 
 ```bash
-# Inference only
-uv run camel infer --limit 50 --batch-size 25
-
-# Evaluate existing traces
-uv run camel evaluate --run-id <mlflow-run-id>
-
-# Export to CSV
-uv run camel export --run-id <mlflow-run-id> --output results/my_run.csv
+camel infer --limit 50
+camel evaluate --run-id <mlflow-run-id>
+camel export --run-id <mlflow-run-id>
 ```
 
-### CLI Options
+### CLI Reference
+
+```bash
+camel --help
+camel run --help
+camel infer --help
+camel evaluate --help
+camel export --help
+camel prepare --help
+```
+
+### Options
 
 | Option | Description | Default |
 |--------|-------------|---------|
 | `--limit` | Max rows to process | all |
-| `--batch-size` | Rows per batch | `$BATCH_SIZE` or 50 |
-| `--concurrency` | Max concurrent calls | `$CONCURRENCY` or 10 |
+| `--batch-size` | Rows per batch | `$BATCH_SIZE` / 50 |
+| `--concurrency` | Max concurrent calls | `$CONCURRENCY` / 10 |
 | `--no-llm-judge` | Skip LLM scorers | false |
 | `--experiment` | MLflow experiment name | WeniEval |
+| `--output` | CSV output path | `$RESULTS_DIR`/predictions.csv |
 
 ## Scorers
 
@@ -107,14 +110,9 @@ Medallion architecture with dbt + DuckDB:
 ## Testing
 
 ```bash
-# Unit tests
-uv run pytest tests/unit/ -v
-
-# Integration tests (requires infrastructure)
-uv run pytest tests/integration/ -v
-
-# All tests with coverage
-uv run pytest --cov=camel --cov-report=term-missing
+uv run pytest tests/unit/
+uv run pytest tests/integration/
+uv run pytest --cov=camel
 ```
 
 ## Code Quality
@@ -136,7 +134,3 @@ Key variables: `OPENAI_API_KEY`, `OPENAI_MODEL`, `JUDGE_MODEL`,
 Columns: `id, question, prediction, data_category_QA, language, model,
 correctness_score, guidelines_score, token_overlap_f1, class_exact_match,
 refusal_detection`
-
-## License
-
-Private — internal evaluation tool.
