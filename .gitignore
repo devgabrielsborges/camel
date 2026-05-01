@@ -10,3 +10,7 @@ wheels/
 .venv
 data/
 *.log
+
+.cursor
+.specify
+*.txt
