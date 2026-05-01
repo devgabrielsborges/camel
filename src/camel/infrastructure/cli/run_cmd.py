@@ -51,6 +51,12 @@ def run_pipeline(
         "-o",
         help="Output CSV path (overrides RESULTS_DIR env var)",
     ),
+    model: Optional[str] = typer.Option(
+        None,
+        "--model",
+        "-m",
+        help="OpenAI model to use for inference (overrides OPENAI_MODEL env var)",
+    ),
     no_llm_judge: bool = typer.Option(
         False,
         "--no-llm-judge",
@@ -80,9 +86,10 @@ def run_pipeline(
     bs = batch_size or settings.batch_size
     conc = concurrency or settings.concurrency
     output_path = output or f"{settings.results_dir}/predictions.csv"
+    model_name = model or settings.openai_model
 
     dataset_adapter = DuckDBDatasetAdapter(db_path=settings.duckdb_path)
-    agent_adapter = OpenAIAgentAdapter(model=settings.openai_model)
+    agent_adapter = OpenAIAgentAdapter(model=model_name)
     tracker_adapter = MLflowTrackerAdapter(tracking_uri=settings.mlflow_tracking_uri)
     renderer = PromptRenderer(template_path=settings.prompt_template_path)
     scorers = create_scorers(settings, no_llm_judge=no_llm_judge)
@@ -90,7 +97,7 @@ def run_pipeline(
     evaluation = Evaluation(
         evaluation_id=str(uuid.uuid4()),
         experiment_name=exp_name,
-        eval_model=ModelConfig(model_name=settings.openai_model, temperature=0.0),
+        eval_model=ModelConfig(model_name=model_name, temperature=0.0),
         prompt_version="",
         dataset_name=settings.dataset_name,
     )
