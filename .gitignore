@@ -39,3 +39,5 @@ edda
 notebooks
 *.txt
 !results/.gitkeep
+
+results
