@@ -16,6 +16,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from camel.application.use_cases.export_results import ExportResults
+from camel.application.use_cases.register_dataset import RegisterDataset
 from camel.application.use_cases.run_evaluation import RunEvaluation
 from camel.application.use_cases.run_inference import RunInference
 from camel.application.use_cases.run_pipeline import RunPipeline
@@ -71,7 +72,7 @@ def sample_records() -> list[DatasetRecord]:
 @pytest.fixture()
 def mock_dataset(sample_records: list[DatasetRecord]) -> MagicMock:
     mock = MagicMock()
-    mock.load_filtered.return_value = iter(sample_records)
+    mock.load_filtered.side_effect = lambda *_a, **_kw: iter(sample_records)
     return mock
 
 
@@ -91,6 +92,7 @@ def mock_agent(sample_records: list[DatasetRecord]) -> AsyncMock:
 def mock_tracker() -> MagicMock:
     mock = MagicMock()
     mock.start_run.return_value = "e2e-run-id"
+    mock.register_prompt.return_value = "prompts:/test/1"
     return mock
 
 
@@ -113,10 +115,15 @@ async def test_e2e_pipeline_smoke(
     mock_tracker: MagicMock,
     mock_renderer: MagicMock,
 ) -> None:
-    """Full pipeline on 2 samples: infer -> evaluate -> export."""
+    """Full pipeline on 2 samples: register -> infer -> evaluate -> export."""
     tracemalloc.start()
 
     try:
+        register_dataset = RegisterDataset(
+            dataset_adapter=mock_dataset,
+            tracker_adapter=mock_tracker,
+        )
+
         run_inference = RunInference(
             dataset_adapter=mock_dataset,
             agent_adapter=mock_agent,
@@ -135,6 +142,8 @@ async def test_e2e_pipeline_smoke(
         export_results = ExportResults()
 
         pipeline = RunPipeline(
+            tracker_adapter=mock_tracker,
+            register_dataset=register_dataset,
             run_inference=run_inference,
             run_evaluation=run_evaluation,
             export_results=export_results,
@@ -148,20 +157,26 @@ async def test_e2e_pipeline_smoke(
             dataset_name="e2e_dataset",
         )
 
+        prompt_tpl = PromptTemplate(
+            template_path="prompts/system_prompt.j2",
+            version_uri="",
+        )
+
         with tempfile.TemporaryDirectory() as tmpdir:
             output_path = str(Path(tmpdir) / "predictions.csv")
 
             result = await pipeline.execute(
                 evaluation=evaluation,
                 categories=["positivo", "negativo"],
-                run_id="e2e-run-id",
                 output_path=output_path,
+                prompt_template=prompt_tpl,
             )
 
             assert result.evaluation.status == EvaluationStatus.COMPLETE
             assert len(result.evaluation.sessions) == 2
             assert result.exported_rows == 2
             assert len(result.overall_metrics) > 0
+            assert result.run_id == "e2e-run-id"
 
             assert Path(output_path).exists()
             with open(output_path, encoding="utf-8") as f:
@@ -199,13 +214,28 @@ async def test_e2e_pipeline_smoke(
 
 @pytest.mark.asyncio
 async def test_e2e_pipeline_halt_propagation(
-    mock_dataset: MagicMock,
     mock_agent: AsyncMock,
     mock_tracker: MagicMock,
     mock_renderer: MagicMock,
+    sample_records: list[DatasetRecord],
 ) -> None:
     """Pipeline halts and propagates error on inference failure."""
-    mock_dataset.load_filtered.side_effect = RuntimeError("Simulated DB failure")
+    mock_dataset = MagicMock()
+    call_count = 0
+
+    def _load_filtered_fail_on_second(*_a: object, **_kw: object) -> object:
+        nonlocal call_count
+        call_count += 1
+        if call_count > 1:
+            raise RuntimeError("Simulated DB failure")
+        return iter(sample_records)
+
+    mock_dataset.load_filtered.side_effect = _load_filtered_fail_on_second
+
+    register_dataset = RegisterDataset(
+        dataset_adapter=mock_dataset,
+        tracker_adapter=mock_tracker,
+    )
 
     run_inference = RunInference(
         dataset_adapter=mock_dataset,
@@ -224,6 +254,8 @@ async def test_e2e_pipeline_halt_propagation(
     export_results = ExportResults()
 
     pipeline = RunPipeline(
+        tracker_adapter=mock_tracker,
+        register_dataset=register_dataset,
         run_inference=run_inference,
         run_evaluation=run_evaluation,
         export_results=export_results,
@@ -241,7 +273,6 @@ async def test_e2e_pipeline_halt_propagation(
         await pipeline.execute(
             evaluation=evaluation,
             categories=["positivo"],
-            run_id="e2e-run-id",
             output_path="/tmp/should-not-exist.csv",
         )
 

@@ -64,8 +64,7 @@ def _download_dataset(raw_path: Path) -> None:
         ds.to_parquet(str(raw_path))
     except ImportError:
         typer.echo(
-            "The 'datasets' package is required for download. "
-            "Install it with: uv add datasets",
+            "The 'datasets' package is required for download. " "Install it with: uv add datasets",
             err=True,
         )
         raise typer.Exit(code=1)

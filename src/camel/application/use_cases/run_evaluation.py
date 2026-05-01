@@ -48,6 +48,16 @@ class RunEvaluation:
         if evaluation.status != EvaluationStatus.EVALUATING:
             evaluation.transition_to(EvaluationStatus.EVALUATING)
 
+        scorer_names = [getattr(s, "name", "unknown") for s in self._scorers]
+        self._tracker.set_run_tags(
+            run_id,
+            {
+                "evaluation.scorers": ",".join(scorer_names),
+                "evaluation.scorer_count": str(len(self._scorers)),
+                "evaluation.session_count": str(len(evaluation.sessions)),
+            },
+        )
+
         all_scores: list[Score] = []
         scores_by_category: dict[str, list[Score]] = defaultdict(list)
         scored_count = 0
