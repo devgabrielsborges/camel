@@ -42,7 +42,7 @@ def evaluate(
 
     tracker = MLflowTrackerAdapter(tracking_uri=settings.mlflow_tracking_uri)
 
-    det_scorer = DeterministicScorer()
+    DeterministicScorer()
     llm_scorer: LLMJudgeScorer | None = None
     if not no_llm_judge:
         llm_scorer = LLMJudgeScorer(judge_model=settings.judge_model)
@@ -53,9 +53,7 @@ def evaluate(
         "object with sessions populated from inference. "
         "Use 'camel run' for the full pipeline."
     )
-    typer.echo(
-        f"Deterministic scorers: token_overlap_f1, class_exact_match, refusal_detection"
-    )
+    typer.echo(f"Deterministic scorers: token_overlap_f1, class_exact_match, refusal_detection")
     if llm_scorer:
         typer.echo(f"LLM judge: {settings.judge_model} (Correctness + Guidelines)")
     else:

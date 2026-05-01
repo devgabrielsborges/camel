@@ -60,21 +60,58 @@ class TestRefusalDetection:
         score = refusal_detection("Here is the answer to your question.")
         assert score.value is False
 
-    def test_english_refusal(self) -> None:
+    def test_english_dont_have(self) -> None:
         score = refusal_detection("I don't have information about that.")
         assert score.value is True
 
-    def test_portuguese_refusal(self) -> None:
+    def test_english_cannot(self) -> None:
+        score = refusal_detection("I cannot answer that question.")
+        assert score.value is True
+
+    def test_english_unable(self) -> None:
+        score = refusal_detection("I'm unable to find it.")
+        assert score.value is True
+
+    def test_english_never_find(self) -> None:
+        score = refusal_detection("I could never find that record.")
+        assert score.value is True
+
+    def test_portuguese_nao_possuo(self) -> None:
         score = refusal_detection("Não possuo informações sobre isso.")
         assert score.value is True
 
-    def test_spanish_refusal(self) -> None:
+    def test_portuguese_nao_consigo(self) -> None:
+        score = refusal_detection("Não consigo encontrar essa informação.")
+        assert score.value is True
+
+    def test_portuguese_nao_tenho(self) -> None:
+        score = refusal_detection("Não tenho essa informação.")
+        assert score.value is True
+
+    def test_portuguese_nao_encontrei(self) -> None:
+        score = refusal_detection("Não encontrei informações sobre isso.")
+        assert score.value is True
+
+    def test_spanish_no_tengo(self) -> None:
         score = refusal_detection("No tengo esa información.")
         assert score.value is True
 
-    def test_cannot_refusal(self) -> None:
-        score = refusal_detection("I cannot answer that question.")
+    def test_spanish_no_puedo(self) -> None:
+        score = refusal_detection("No puedo ayudarte con eso.")
         assert score.value is True
+
+    def test_non_refusal_with_negation(self) -> None:
+        score = refusal_detection("No problem, here is your answer.")
+        assert score.value is False
+
+    def test_non_refusal_portuguese(self) -> None:
+        score = refusal_detection("Aqui está a resposta para sua pergunta.")
+        assert score.value is False
+
+    def test_metadata_contains_language(self) -> None:
+        score = refusal_detection("I don't have that.")
+        assert score.metadata is not None
+        assert "detected_language" in score.metadata
 
     def test_scorer_name(self) -> None:
         score = refusal_detection("some text")
