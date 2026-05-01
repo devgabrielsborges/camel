@@ -77,13 +77,17 @@ def token_overlap_f1(response: str, reference: str) -> Score:
     return Score(scorer_name="token_overlap_f1", value=round(f1, 4))
 
 
-def class_exact_match(response: str, expected_class_id: str) -> Score:
-    """Check if the agent's response contains the expected class ID."""
-    match = expected_class_id.lower() in response.lower()
+def class_exact_match(response: str, expected_class_id: str, *, class_name: str = "") -> Score:
+    """Check if the agent's response contains the expected class ID or class name."""
+    response_lower = response.lower()
+    match = expected_class_id.lower() in response_lower
+    if not match and class_name:
+        normalized = class_name.replace("_", " ").lower()
+        match = normalized in response_lower
     return Score(
         scorer_name="class_exact_match",
         value=match,
-        metadata={"expected": expected_class_id},
+        metadata={"expected": expected_class_id, "class_name": class_name},
     )
 
 
