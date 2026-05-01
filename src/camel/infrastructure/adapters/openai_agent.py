@@ -7,11 +7,14 @@ from typing import Any
 
 import mlflow
 from agents import Agent, ModelResponse, ModelSettings, Runner, flush_traces, trace
+from agents.extensions.models.litellm_model import LitellmModel
 
 from camel.domain.entities.trace import Trace
 from camel.domain.value_objects import TokenUsage, ToolCall
 from camel.domain.value_objects.dataset_record import DatasetRecord
 from camel.infrastructure.adapters.tools import build_knowledge_tool
+
+_OPENAI_NATIVE_PREFIXES = ("gpt-", "o1-", "o3-", "o4-", "chatgpt-")
 
 
 def _aggregate_usage(raw_responses: Sequence[ModelResponse]) -> TokenUsage:
@@ -51,19 +54,27 @@ def _extract_tool_calls(new_items: Sequence[object]) -> list[ToolCall]:
     return calls
 
 
+def _needs_litellm(model: str) -> bool:
+    return "/" in model or not model.lower().startswith(_OPENAI_NATIVE_PREFIXES)
+
+
 class OpenAIAgentAdapter:
     def __init__(self, model: str) -> None:
         self._model = model
+        self._agent_model: str | LitellmModel = (
+            LitellmModel(model=model) if _needs_litellm(model) else model
+        )
 
     async def invoke(self, record: DatasetRecord, system_prompt: str) -> Trace:
         kb_tool = build_knowledge_tool(record.chunks_big)
 
+        store = not isinstance(self._agent_model, LitellmModel)
         agent = Agent(
             name="weni_eval_agent",
             instructions=system_prompt,
-            model=self._model,
+            model=self._agent_model,
             tools=[kb_tool],
-            model_settings=ModelSettings(store=True),
+            model_settings=ModelSettings(store=store),
         )
 
         session_id = record.id
