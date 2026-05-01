@@ -3,8 +3,9 @@ from __future__ import annotations
 from unittest.mock import MagicMock
 
 import pytest
+from mlflow.entities import Feedback
 
-from camel.application.use_cases.run_evaluation import RunEvaluation
+from camel.application.use_cases.run_evaluation import RunEvaluation, _feedback_to_score
 from camel.domain.entities.evaluation import Evaluation, EvaluationStatus
 from camel.domain.entities.session import Session
 from camel.domain.entities.trace import Trace
@@ -132,3 +133,33 @@ def test_execute_adds_scores_to_traces(
 
     trace_obj = evaluation.sessions[0].traces[0]
     assert len(trace_obj.scores) > 0
+
+
+class TestFeedbackToScore:
+    def test_string_yes_value(self) -> None:
+        fb = Feedback(name="correctness", value="yes")
+        score = _feedback_to_score(fb, "fallback")
+        assert score.value == 1.0
+        assert score.scorer_name == "correctness"
+
+    def test_string_no_value(self) -> None:
+        fb = Feedback(name="guidelines", value="no")
+        score = _feedback_to_score(fb, "fallback")
+        assert score.value == 0.0
+        assert score.scorer_name == "guidelines"
+
+    def test_float_value(self) -> None:
+        fb = Feedback(name="scorer", value=0.85)
+        score = _feedback_to_score(fb, "fallback")
+        assert score.value == 0.85
+
+    def test_bool_value(self) -> None:
+        fb = Feedback(name="scorer", value=True)
+        score = _feedback_to_score(fb, "fallback")
+        assert score.value is True
+
+    def test_fallback_name(self) -> None:
+        fb = Feedback(name="feedback", value="yes")
+        score = _feedback_to_score(fb, "my_scorer")
+        assert score.scorer_name == "my_scorer"
+        assert score.value == 1.0

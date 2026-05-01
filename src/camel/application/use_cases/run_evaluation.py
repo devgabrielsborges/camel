@@ -20,6 +20,9 @@ from camel.infrastructure.adapters.mlflow_tracker import MLflowTrackerAdapter
 logger = logging.getLogger(__name__)
 
 
+_YES_NO_MAP: dict[str, float] = {"yes": 1.0, "no": 0.0}
+
+
 def _feedback_to_score(feedback: Feedback, fallback_name: str) -> Score:
     name = feedback.name if feedback.name != "feedback" else fallback_name
     raw = feedback.feedback.value if feedback.feedback else None
@@ -27,6 +30,8 @@ def _feedback_to_score(feedback: Feedback, fallback_name: str) -> Score:
         value: float | bool = raw
     elif isinstance(raw, (int, float)):
         value = float(raw)
+    elif isinstance(raw, str):
+        value = _YES_NO_MAP.get(raw.strip().lower(), 0.0)
     else:
         value = 0.0
     return Score(scorer_name=name, value=value, rationale=feedback.rationale)
@@ -73,6 +78,9 @@ class RunEvaluation:
                         "expected_response": record.content,
                         "guidelines": "; ".join(record.instructions),
                         "chosen_class_id": record.chosen_class_id,
+                        "classes": [
+                            {"id": c.class_id, "class": c.class_name} for c in record.classes
+                        ],
                     }
 
                     for scorer_fn in self._scorers:
