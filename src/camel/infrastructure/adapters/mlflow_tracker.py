@@ -12,12 +12,32 @@ from camel.domain.value_objects.prompt_template import PromptTemplate
 
 logger = logging.getLogger(__name__)
 
+_PATCHED = False
+
+
+def _patch_livespan_set_tag() -> None:
+    """Workaround for mlflow 3.11.x bug: _agent_tracer calls LiveSpan.set_tag
+    but LiveSpan only exposes set_attribute. Alias set_tag to set_attribute."""
+    global _PATCHED  # noqa: PLW0603
+    if _PATCHED:
+        return
+    try:
+        from mlflow.tracing.fluent import LiveSpan  # type: ignore[attr-defined]
+
+        if not hasattr(LiveSpan, "set_tag"):
+            LiveSpan.set_tag = LiveSpan.set_attribute  # type: ignore[attr-defined]
+            logger.debug("Patched LiveSpan.set_tag -> set_attribute")
+    except ImportError:
+        pass
+    _PATCHED = True
+
 
 class MLflowTrackerAdapter:
     def __init__(self, tracking_uri: str) -> None:
         mlflow.set_tracking_uri(tracking_uri)
 
     def enable_autolog(self) -> None:
+        _patch_livespan_set_tag()
         mlflow.openai.autolog()
 
     def disable_autolog(self) -> None:
