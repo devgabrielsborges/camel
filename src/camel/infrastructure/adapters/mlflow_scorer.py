@@ -3,96 +3,68 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from camel.domain.services.scoring import (
-    class_exact_match,
-    refusal_detection,
-    token_overlap_f1,
-)
-from camel.domain.value_objects.score import Score
+from mlflow.entities import Feedback
+from mlflow.genai.scorers import scorer
+
+from camel.domain.services.scoring import class_exact_match as _class_exact_match
+from camel.domain.services.scoring import refusal_detection as _refusal_detection
+from camel.domain.services.scoring import token_overlap_f1 as _token_overlap_f1
 
 logger = logging.getLogger(__name__)
 
 
-class DeterministicScorer:
-    """Runs all deterministic scorers against a single trace."""
-
-    def score(
-        self,
-        inputs: dict[str, str],
-        outputs: dict[str, str],
-        expectations: dict[str, str],
-    ) -> list[Score]:
-        scores: list[Score] = []
-        response = outputs.get("response", "")
-        reference = expectations.get("expected_response", "")
-
-        scores.append(token_overlap_f1(response, reference))
-
-        expected_class = expectations.get("chosen_class_id", "")
-        if expected_class:
-            scores.append(class_exact_match(response, expected_class))
-
-        scores.append(refusal_detection(response))
-
-        return scores
+@scorer
+def token_overlap_f1(
+    *,
+    inputs: dict[str, Any] | None = None,
+    outputs: dict[str, Any] | None = None,
+    expectations: dict[str, Any] | None = None,
+) -> Feedback:
+    result = _token_overlap_f1(
+        (outputs or {}).get("response", ""),
+        (expectations or {}).get("expected_response", ""),
+    )
+    return Feedback(name="token_overlap_f1", value=result.value)
 
 
-class LLMJudgeScorer:
-    """Wraps MLflow's built-in Correctness and Guidelines judges."""
+@scorer
+def class_exact_match(
+    *,
+    inputs: dict[str, Any] | None = None,
+    outputs: dict[str, Any] | None = None,
+    expectations: dict[str, Any] | None = None,
+) -> Feedback:
+    expected_class = (expectations or {}).get("chosen_class_id", "")
+    if not expected_class:
+        return Feedback(name="class_exact_match", value=False, rationale="No expected class")
+    result = _class_exact_match((outputs or {}).get("response", ""), expected_class)
+    return Feedback(name="class_exact_match", value=bool(result.value))
 
-    def __init__(self, judge_model: str) -> None:
-        self._judge_model = judge_model
 
-    def score(
-        self,
-        inputs: dict[str, str],
-        outputs: dict[str, str],
-        expectations: dict[str, str],
-    ) -> list[Score]:
-        scores: list[Score] = []
+@scorer
+def refusal_detection(
+    *,
+    inputs: dict[str, Any] | None = None,
+    outputs: dict[str, Any] | None = None,
+    expectations: dict[str, Any] | None = None,
+) -> Feedback:
+    result = _refusal_detection((outputs or {}).get("response", ""))
+    return Feedback(name="refusal_detection", value=bool(result.value))
 
-        try:
-            from mlflow.genai.scorers import Correctness, Guidelines
 
-            correctness = Correctness()
-            guideline_text = expectations.get("guidelines", "")
-            if not guideline_text:
-                guideline_text = "Be helpful and accurate."
-            guidelines = Guidelines(guidelines=guideline_text)
+def get_deterministic_scorers() -> list[Any]:
+    return [token_overlap_f1, class_exact_match, refusal_detection]
 
-            eval_input: dict[str, Any] = {
-                "inputs": inputs,
-                "outputs": outputs,
-                "expectations": expectations,
-            }
 
-            try:
-                c_result = correctness(**eval_input)
-                if c_result is not None:
-                    scores.append(
-                        Score(
-                            scorer_name="correctness",
-                            value=float(getattr(c_result, "value", 0.0)),
-                            rationale=getattr(c_result, "rationale", None),
-                        )
-                    )
-            except Exception:
-                logger.warning("Correctness scorer failed", exc_info=True)
+def get_llm_judge_scorers(judge_model: str) -> list[Any]:
+    try:
+        from mlflow.genai.scorers import Correctness, Guidelines
 
-            try:
-                g_result = guidelines(**eval_input)
-                if g_result is not None:
-                    scores.append(
-                        Score(
-                            scorer_name="guidelines",
-                            value=float(getattr(g_result, "value", 0.0)),
-                            rationale=getattr(g_result, "rationale", None),
-                        )
-                    )
-            except Exception:
-                logger.warning("Guidelines scorer failed", exc_info=True)
-
-        except ImportError:
-            logger.warning("MLflow genai scorers not available")
-
-        return scores
+        model_uri = f"openai:/{judge_model}"
+        return [
+            Correctness(model=model_uri),
+            Guidelines(guidelines="Be helpful and accurate.", model=model_uri),
+        ]
+    except ImportError:
+        logger.warning("MLflow genai scorers not available")
+        return []

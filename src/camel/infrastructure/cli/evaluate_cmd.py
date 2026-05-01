@@ -31,21 +31,16 @@ def evaluate(
     ),
 ) -> None:
     """Score cached traces from a previous inference run."""
-    from camel.infrastructure.adapters.mlflow_scorer import (
-        DeterministicScorer,
-        LLMJudgeScorer,
-    )
     from camel.infrastructure.adapters.mlflow_tracker import MLflowTrackerAdapter
     from camel.infrastructure.config.settings import Settings
+    from camel.infrastructure.factories.scorer_factory import create_scorers
 
     settings = Settings()  # type: ignore[call-arg]
 
     tracker = MLflowTrackerAdapter(tracking_uri=settings.mlflow_tracking_uri)
+    scorers = create_scorers(settings, no_llm_judge=no_llm_judge)
 
-    DeterministicScorer()
-    llm_scorer: LLMJudgeScorer | None = None
-    if not no_llm_judge:
-        llm_scorer = LLMJudgeScorer(judge_model=settings.judge_model)
+    scorer_names = [getattr(s, "name", "unknown") for s in scorers]
 
     typer.echo(
         f"This command scores traces from run {run_id}. "
@@ -53,10 +48,5 @@ def evaluate(
         "object with sessions populated from inference. "
         "Use 'camel run' for the full pipeline."
     )
-    typer.echo(f"Deterministic scorers: token_overlap_f1, class_exact_match, refusal_detection")
-    if llm_scorer:
-        typer.echo(f"LLM judge: {settings.judge_model} (Correctness + Guidelines)")
-    else:
-        typer.echo("LLM judge: disabled")
-
+    typer.echo(f"Scorers: {', '.join(scorer_names)}")
     typer.echo(f"MLflow tracking: {settings.mlflow_tracking_uri}")

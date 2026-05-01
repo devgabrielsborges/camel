@@ -11,7 +11,7 @@ from camel.domain.entities.trace import Trace
 from camel.domain.value_objects import TokenUsage
 from camel.domain.value_objects.dataset_record import DatasetRecord
 from camel.domain.value_objects.model_config import ModelConfig
-from camel.infrastructure.adapters.mlflow_scorer import DeterministicScorer
+from camel.infrastructure.adapters.mlflow_scorer import get_deterministic_scorers
 
 
 def _make_trace(session_id: str) -> Trace:
@@ -52,8 +52,7 @@ def test_execute_produces_scores(sample_dataset_record: DatasetRecord) -> None:
     mock_tracker = MagicMock()
 
     use_case = RunEvaluation(
-        deterministic_scorer=DeterministicScorer(),
-        llm_scorer=None,
+        scorers=get_deterministic_scorers(),
         tracker_adapter=mock_tracker,
     )
 
@@ -72,8 +71,7 @@ def test_execute_logs_metrics(sample_dataset_record: DatasetRecord) -> None:
     mock_tracker = MagicMock()
 
     use_case = RunEvaluation(
-        deterministic_scorer=DeterministicScorer(),
-        llm_scorer=None,
+        scorers=get_deterministic_scorers(),
         tracker_adapter=mock_tracker,
     )
 
@@ -91,8 +89,7 @@ def test_execute_category_breakdown(sample_dataset_record: DatasetRecord) -> Non
     mock_tracker = MagicMock()
 
     use_case = RunEvaluation(
-        deterministic_scorer=DeterministicScorer(),
-        llm_scorer=None,
+        scorers=get_deterministic_scorers(),
         tracker_adapter=mock_tracker,
     )
 
@@ -110,8 +107,7 @@ def test_execute_transitions_to_failed_on_error(
     mock_tracker.log_metrics.side_effect = RuntimeError("MLflow down")
 
     use_case = RunEvaluation(
-        deterministic_scorer=DeterministicScorer(),
-        llm_scorer=None,
+        scorers=get_deterministic_scorers(),
         tracker_adapter=mock_tracker,
     )
 
@@ -128,8 +124,7 @@ def test_execute_adds_scores_to_traces(
     mock_tracker = MagicMock()
 
     use_case = RunEvaluation(
-        deterministic_scorer=DeterministicScorer(),
-        llm_scorer=None,
+        scorers=get_deterministic_scorers(),
         tracker_adapter=mock_tracker,
     )
 

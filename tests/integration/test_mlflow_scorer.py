@@ -3,54 +3,85 @@ from __future__ import annotations
 import os
 
 import pytest
+from mlflow.entities import Feedback
 
 from camel.infrastructure.adapters.mlflow_scorer import (
-    DeterministicScorer,
-    LLMJudgeScorer,
+    class_exact_match,
+    get_deterministic_scorers,
+    get_llm_judge_scorers,
+    refusal_detection,
+    token_overlap_f1,
 )
 
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
 
 
-class TestDeterministicScorer:
-    def test_score_returns_scores(self) -> None:
-        scorer = DeterministicScorer()
-        scores = scorer.score(
-            inputs={"question": "What is the return policy?"},
-            outputs={"response": "Returns accepted within 30 days."},
-            expectations={
-                "expected_response": "Our return policy allows returns within 30 days.",
-                "chosen_class_id": "P1",
-            },
+class TestTokenOverlapF1Scorer:
+    def test_returns_feedback(self) -> None:
+        result = token_overlap_f1(
+            outputs={"response": "returns within 30 days"},
+            expectations={"expected_response": "returns accepted within 30 days"},
         )
+        assert isinstance(result, Feedback)
+        assert result.name == "token_overlap_f1"
+        assert result.feedback.value > 0.0
 
-        names = {s.scorer_name for s in scores}
+    def test_no_overlap(self) -> None:
+        result = token_overlap_f1(
+            outputs={"response": "xyz"},
+            expectations={"expected_response": "abc def ghi"},
+        )
+        assert result.feedback.value == 0.0
+
+
+class TestClassExactMatchScorer:
+    def test_match(self) -> None:
+        result = class_exact_match(
+            outputs={"response": "This is classified as P1."},
+            expectations={"chosen_class_id": "P1"},
+        )
+        assert isinstance(result, Feedback)
+        assert result.name == "class_exact_match"
+        assert result.feedback.value is True
+
+    def test_no_expected_class(self) -> None:
+        result = class_exact_match(
+            outputs={"response": "some answer"},
+            expectations={"chosen_class_id": ""},
+        )
+        assert result.feedback.value is False
+
+
+class TestRefusalDetectionScorer:
+    def test_refusal_detected(self) -> None:
+        result = refusal_detection(
+            outputs={"response": "I don't have that information."},
+        )
+        assert isinstance(result, Feedback)
+        assert result.name == "refusal_detection"
+        assert result.feedback.value is True
+
+    def test_no_refusal(self) -> None:
+        result = refusal_detection(
+            outputs={"response": "Here is the answer to your question."},
+        )
+        assert result.feedback.value is False
+
+
+class TestGetDeterministicScorers:
+    def test_returns_three(self) -> None:
+        scorers = get_deterministic_scorers()
+        assert len(scorers) == 3
+        names = {getattr(s, "name", "") for s in scorers}
         assert "token_overlap_f1" in names
         assert "class_exact_match" in names
         assert "refusal_detection" in names
 
-    def test_f1_score_is_positive_for_overlap(self) -> None:
-        scorer = DeterministicScorer()
-        scores = scorer.score(
-            inputs={"question": "test"},
-            outputs={"response": "returns within 30 days"},
-            expectations={"expected_response": "returns accepted within 30 days"},
-        )
-        f1 = next(s for s in scores if s.scorer_name == "token_overlap_f1")
-        assert f1.value > 0.0
-
 
 @pytest.mark.skipif(not OPENAI_API_KEY, reason="OPENAI_API_KEY not set")
-class TestLLMJudgeScorer:
-    def test_score_returns_list(self) -> None:
+class TestLLMJudgeScorers:
+    def test_returns_list(self) -> None:
         judge_model = os.environ.get("JUDGE_MODEL", "gpt-4o-mini")
-        scorer = LLMJudgeScorer(judge_model=judge_model)
-        scores = scorer.score(
-            inputs={"question": "What is your return policy?"},
-            outputs={"response": "We accept returns within 30 days."},
-            expectations={
-                "expected_response": "Returns are accepted within 30 days of purchase.",
-                "guidelines": "Be polite and accurate.",
-            },
-        )
-        assert isinstance(scores, list)
+        scorers = get_llm_judge_scorers(judge_model)
+        assert isinstance(scorers, list)
+        assert len(scorers) == 2
