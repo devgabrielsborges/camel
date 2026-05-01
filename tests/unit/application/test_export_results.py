@@ -3,7 +3,6 @@ from __future__ import annotations
 import csv
 import tempfile
 from pathlib import Path
-from unittest.mock import MagicMock
 
 import pytest
 
@@ -30,12 +29,8 @@ def _make_scored_trace(session_id: str) -> Trace:
     trace.add_score(Score(scorer_name="token_overlap_f1", value=0.85))
     trace.add_score(Score(scorer_name="class_exact_match", value=True))
     trace.add_score(Score(scorer_name="refusal_detection", value=False))
-    trace.add_score(
-        Score(scorer_name="correctness", value=0.9, rationale="Good answer")
-    )
-    trace.add_score(
-        Score(scorer_name="guidelines", value=0.95, rationale="Follows guidelines")
-    )
+    trace.add_score(Score(scorer_name="correctness", value=0.9, rationale="Good answer"))
+    trace.add_score(Score(scorer_name="guidelines", value=0.95, rationale="Follows guidelines"))
     return trace
 
 
