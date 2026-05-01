@@ -28,6 +28,11 @@ data/
 .DS_Store
 Thumbs.db
 
+# dbt artifacts
+dbt/target/
+dbt/logs/
+dbt/.user.yml
+
 # Project-specific
 specs
 edda

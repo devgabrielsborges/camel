@@ -79,9 +79,7 @@ services:
           --backend-store-uri postgresql://${POSTGRES_USER:-mlflow}:${POSTGRES_PASSWORD:-mlflow}@postgres:5432/${POSTGRES_DB:-mlflow} \
           --serve-artifacts \
           --default-artifact-root s3://${MLFLOW_BUCKET:-mlflow-artifacts}/ \
-          --allowed-hosts "localhost:*,host.k3d.internal:*,0.0.0.0:*" \
-          --pool_size 30 \
-          --pool_recycle 30
+          --allowed-hosts "localhost:*,host.k3d.internal:*,0.0.0.0:*"
     volumes:
       - mlflow-data:/mlflow
     environment:
@@ -89,6 +87,8 @@ services:
       AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-minioadmin}
       AWS_DEFAULT_REGION: ${AWS_REGION:-us-east-1}
       MLFLOW_S3_ENDPOINT_URL: http://minio:9000
+      SQLALCHEMY_POOL_SIZE: ${SQLALCHEMY_POOL_SIZE:-30}
+      SQLALCHEMY_POOL_RECYCLE: ${SQLALCHEMY_POOL_RECYCLE:-30}
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:5000/health')\""]
       interval: 10s
@@ -110,6 +110,7 @@ services:
       OPENAI_API_KEY: ${OPENAI_API_KEY}
       AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-minioadmin}
       AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-minioadmin}
+      AWS_DEFAULT_REGION: ${AWS_REGION:-us-east-1}
     volumes:
       - ./data:/app/data:ro
       - ./results:/app/results

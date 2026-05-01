@@ -3,4 +3,4 @@ camel:
   outputs:
     dev:
       type: duckdb
-      path: ../data/camel.duckdb
+      path: "{{ env_var('DUCKDB_PATH', '../data/camel.duckdb') }}"
