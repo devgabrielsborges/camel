@@ -1,0 +1,1 @@
+{"_invocation_id": "d53b78ef-32d6-4654-893a-b760d473c4ab", "linked": {"0": {"name": "model.camel_eval.stg_raw_dataset", "type": "model", "succ": [1]}, "1": {"name": "model.camel_eval.int_filtered_dataset", "type": "model"}}}

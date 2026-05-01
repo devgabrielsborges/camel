@@ -25,6 +25,8 @@ repos:
       - id: mypy
         additional_dependencies: []
         args: ["--config-file=pyproject.toml"]
+        pass_filenames: false
+        entry: mypy src/camel/
 
   - repo: local
     hooks:
@@ -33,5 +35,6 @@ repos:
         entry: vulture
         language: python
         types: [python]
-        args: ["--min-confidence", "80", "vulture_whitelist.py"]
+        args: ["--min-confidence", "80", "src/camel/"]
+        pass_filenames: false
         require_serial: true
