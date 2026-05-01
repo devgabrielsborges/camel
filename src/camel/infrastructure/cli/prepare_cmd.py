@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import logging
 import os
+import shutil
 import subprocess
-import sys
 from pathlib import Path
 
 import typer
@@ -78,7 +78,12 @@ def _run_dbt(gold: bool) -> None:
         typer.echo("dbt/ directory not found", err=True)
         raise typer.Exit(code=1)
 
-    cmd: list[str] = [sys.executable, "-m", "dbt", "run"]
+    dbt_bin = shutil.which("dbt")
+    if dbt_bin is None:
+        typer.echo("dbt executable not found. Install with: uv add dbt-core dbt-duckdb", err=True)
+        raise typer.Exit(code=1)
+
+    cmd: list[str] = [dbt_bin, "run"]
     if gold:
         cmd += ["--vars", '{"enable_gold": true}']
 
