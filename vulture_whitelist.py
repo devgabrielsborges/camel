@@ -39,5 +39,17 @@ validate_output  # noqa: B018
 add_score  # noqa: B018
 is_single_turn  # noqa: B018
 
+# CLI evaluate_cmd
+evaluate  # noqa: B018
+no_llm_judge  # noqa: B018
+
+# Aggregation dataclasses
+AggregatedMetric  # noqa: B018
+CategoryBreakdown  # noqa: B018
+
+# Scorer factories
+create_deterministic_scorer  # noqa: B018
+create_llm_judge_scorer  # noqa: B018
+
 # Tool function params — required by agents SDK
 ctx  # noqa: B018
