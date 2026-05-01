@@ -5,7 +5,8 @@ import time
 from collections.abc import Sequence
 from typing import Any
 
-from agents import Agent, ModelResponse, Runner, flush_traces, trace
+import mlflow
+from agents import Agent, ModelResponse, ModelSettings, Runner, flush_traces, trace
 
 from camel.domain.entities.trace import Trace
 from camel.domain.value_objects import TokenUsage, ToolCall
@@ -62,6 +63,7 @@ class OpenAIAgentAdapter:
             instructions=system_prompt,
             model=self._model,
             tools=[kb_tool],
+            model_settings=ModelSettings(store=True),
         )
 
         session_id = record.id
@@ -77,12 +79,19 @@ class OpenAIAgentAdapter:
         ) as current_trace:
             result = await Runner.run(agent, input=record.question)
             latency_ms = int((time.perf_counter() - t0) * 1000)
+            final_output = str(result.final_output)
+            _MAX_PREVIEW = 1000
+            mlflow.update_current_trace(
+                tags={"mlflow.trace.session": session_id},
+                request_preview=record.question[:_MAX_PREVIEW],
+                response_preview=final_output[:_MAX_PREVIEW],
+            )
 
         return Trace(
             trace_id=current_trace.trace_id,
             session_id=session_id,
             input_text=record.question,
-            output_text=str(result.final_output),
+            output_text=final_output,
             tool_calls=_extract_tool_calls(result.new_items),
             token_usage=_aggregate_usage(result.raw_responses),
             model=self._model,
