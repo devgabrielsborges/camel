@@ -26,8 +26,10 @@ _YES_NO_MAP: dict[str, float] = {"yes": 1.0, "no": 0.0}
 def _feedback_to_score(feedback: Feedback, fallback_name: str) -> Score:
     name = feedback.name if feedback.name != "feedback" else fallback_name
     raw = feedback.feedback.value if feedback.feedback else None
-    if isinstance(raw, bool):
-        value: float | bool = raw
+    if raw is None:
+        value: float | bool | None = None
+    elif isinstance(raw, bool):
+        value = raw
     elif isinstance(raw, (int, float)):
         value = float(raw)
     elif isinstance(raw, str):

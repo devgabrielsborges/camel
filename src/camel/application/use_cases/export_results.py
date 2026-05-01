@@ -33,8 +33,8 @@ _CSV_COLUMNS: list[str] = [
 
 
 def _score_value_str(score: Score) -> str:
-    if isinstance(score.value, bool):
-        return str(score.value)
+    if score.value is None:
+        return "N/A"
     return str(score.value)
 
 

@@ -163,3 +163,9 @@ class TestFeedbackToScore:
         score = _feedback_to_score(fb, "my_scorer")
         assert score.scorer_name == "my_scorer"
         assert score.value == 1.0
+
+    def test_none_value_from_error_feedback(self) -> None:
+        fb = Feedback(name="class_exact_match", error="N/A: class not in list")
+        score = _feedback_to_score(fb, "fallback")
+        assert score.value is None
+        assert score.scorer_name == "class_exact_match"
