@@ -62,9 +62,7 @@ class RunEvaluation:
                         scores_by_category[record.data_category_qa].append(s)
 
                     if self._llm_scorer is not None:
-                        llm_scores = self._llm_scorer.score(
-                            inputs, outputs, expectations
-                        )
+                        llm_scores = self._llm_scorer.score(inputs, outputs, expectations)
                         for s in llm_scores:
                             trace_obj.add_score(s)
                             all_scores.append(s)

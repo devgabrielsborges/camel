@@ -1,24 +1,57 @@
 from __future__ import annotations
 
-import re
-
+import nltk
 import tiktoken
+from nltk.stem import SnowballStemmer
+from nltk.tokenize import word_tokenize
 
 from camel.domain.value_objects.score import Score
 
+nltk.download("punkt_tab", quiet=True)
+
 _ENCODING = tiktoken.get_encoding("o200k_base")
 
-_REFUSAL_PATTERNS: list[re.Pattern[str]] = [
-    re.compile(r"(?i)i don'?t have"),
-    re.compile(r"(?i)i cannot"),
-    re.compile(r"(?i)i'?m (not able|unable)"),
-    re.compile(r"(?i)não possuo"),
-    re.compile(r"(?i)não (tenho|consigo|posso)"),
-    re.compile(r"(?i)no tengo"),
-    re.compile(r"(?i)no (puedo|cuento con)"),
-    re.compile(r"(?i)não (encontrei|há)"),
-    re.compile(r"(?i)no (encontré|hay)"),
-]
+_STEMMERS: dict[str, SnowballStemmer] = {
+    "english": SnowballStemmer("english"),
+    "portuguese": SnowballStemmer("portuguese"),
+    "spanish": SnowballStemmer("spanish"),
+}
+
+_NEGATION_STEMS: dict[str, frozenset[str]] = {
+    "english": frozenset({"not", "n't", "no", "never", "neither"}),
+    "portuguese": frozenset({"nã", "no", "nunc", "nem"}),
+    "spanish": frozenset({"no", "nunc", "ni", "jamas"}),
+}
+
+_CAPABILITY_STEMS: dict[str, frozenset[str]] = {
+    "english": frozenset({"have", "can", "find", "know", "possess", "provid", "help", "assist"}),
+    "portuguese": frozenset({"tenh", "possu", "consig", "encontr", "pod", "sab", "hav"}),
+    "spanish": frozenset({"teng", "pued", "encontr", "sab", "cont", "hav"}),
+}
+
+_SELF_NEGATING_STEMS: frozenset[str] = frozenset({"unabl", "imposs", "impossív"})
+
+_REFUSAL_WINDOW = 4
+
+
+def _stem_tokens(tokens: list[str], stemmer: SnowballStemmer) -> list[str]:
+    return [stemmer.stem(t.lower()) for t in tokens]
+
+
+def _has_refusal(stems: list[str], lang: str) -> bool:
+    negations = _NEGATION_STEMS[lang]
+    capabilities = _CAPABILITY_STEMS[lang]
+
+    for stem in stems:
+        if stem in _SELF_NEGATING_STEMS:
+            return True
+
+    for i, stem in enumerate(stems):
+        if stem in negations:
+            window = stems[max(0, i - _REFUSAL_WINDOW) : i + _REFUSAL_WINDOW + 1]
+            if any(s in capabilities for s in window):
+                return True
+    return False
 
 
 def _tokenize(text: str) -> list[int]:
@@ -55,12 +88,14 @@ def class_exact_match(response: str, expected_class_id: str) -> Score:
 
 
 def refusal_detection(response: str) -> Score:
-    """Detect refusal patterns in the agent response."""
-    for pattern in _REFUSAL_PATTERNS:
-        if pattern.search(response):
+    """Detect refusal via NLTK tokenization + stemming across EN/PT/ES."""
+    tokens = word_tokenize(response)
+    for lang, stemmer in _STEMMERS.items():
+        stems = _stem_tokens(tokens, stemmer)
+        if _has_refusal(stems, lang):
             return Score(
                 scorer_name="refusal_detection",
                 value=True,
-                metadata={"matched_pattern": pattern.pattern},
+                metadata={"detected_language": lang},
             )
     return Score(scorer_name="refusal_detection", value=False)

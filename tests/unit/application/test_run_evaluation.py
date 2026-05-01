@@ -11,7 +11,6 @@ from camel.domain.entities.trace import Trace
 from camel.domain.value_objects import TokenUsage
 from camel.domain.value_objects.dataset_record import DatasetRecord
 from camel.domain.value_objects.model_config import ModelConfig
-from camel.domain.value_objects.score import Score
 from camel.infrastructure.adapters.mlflow_scorer import DeterministicScorer
 
 
