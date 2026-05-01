@@ -21,7 +21,6 @@ from camel.application.use_cases.run_inference import RunInference
 from camel.application.use_cases.run_pipeline import RunPipeline
 from camel.domain.entities.evaluation import Evaluation, EvaluationStatus
 from camel.domain.entities.trace import Trace
-from camel.domain.services.prompt_renderer import PromptRenderer
 from camel.domain.value_objects import Chunk, ClassDef, TokenUsage
 from camel.domain.value_objects.dataset_record import DatasetRecord
 from camel.domain.value_objects.model_config import ModelConfig
@@ -193,9 +192,9 @@ async def test_e2e_pipeline_smoke(
         _, peak_bytes = tracemalloc.get_traced_memory()
         tracemalloc.stop()
 
-    assert peak_bytes < EIGHT_GB_BYTES, (
-        f"Peak memory {peak_bytes / (1024**3):.2f} GB exceeds 8 GB budget"
-    )
+    assert (
+        peak_bytes < EIGHT_GB_BYTES
+    ), f"Peak memory {peak_bytes / (1024**3):.2f} GB exceeds 8 GB budget"
 
 
 @pytest.mark.asyncio
