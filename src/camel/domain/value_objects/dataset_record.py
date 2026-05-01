@@ -8,15 +8,15 @@ from camel.domain.value_objects import Chunk, ClassDef
 class DatasetRecord(BaseModel, frozen=True):
     id: str
     question: str
-    content: dict[str, str]
-    context_metadata: dict[str, str]
+    content: str
+    context_metadata: str
     name: str
     occupation: str
     adjective: str
     chatbot_goal: str
     instructions: list[str]
-    chunks_big: dict[str, list[Chunk]]
-    classes: dict[str, list[ClassDef]]
+    chunks_big: list[Chunk]
+    classes: list[ClassDef]
     chosen_class_id: str
     language: int
     data_category_qa: str

@@ -23,3 +23,21 @@ categories  # noqa: B018
 evaluation_id  # noqa: B018
 session_id  # noqa: B018
 trace  # noqa: B018
+
+# Pydantic models — used by framework
+model_config  # noqa: B018
+
+# CLI infer_cmd — typer option names
+infer  # noqa: B018
+register  # noqa: B018
+
+# Domain methods consumed by use cases
+add_trace  # noqa: B018
+add_session  # noqa: B018
+transition_to  # noqa: B018
+validate_output  # noqa: B018
+add_score  # noqa: B018
+is_single_turn  # noqa: B018
+
+# Tool function params — required by agents SDK
+ctx  # noqa: B018

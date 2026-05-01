@@ -32,12 +32,10 @@ class PromptRenderer:
             adjective=record.adjective,
             chatbot_goal=record.chatbot_goal,
             instructions=record.instructions,
-            chunks_big={
-                k: [c.model_dump() for c in v] for k, v in record.chunks_big.items()
-            },
-            classes={
-                k: [c.model_dump() for c in v] for k, v in record.classes.items()
-            },
+            classes=[
+                {"class": c.class_name, "context": c.context, "id": c.class_id}
+                for c in record.classes
+            ],
             language=record.language,
         )
         return PromptTemplate(
