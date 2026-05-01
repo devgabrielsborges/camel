@@ -50,7 +50,7 @@ def export(
     from camel.infrastructure.adapters.mlflow_tracker import MLflowTrackerAdapter
     from camel.infrastructure.config.settings import Settings
 
-    settings = Settings()  # type: ignore[call-arg]
+    settings = Settings()
 
     exp_name = experiment or settings.experiment_name
     output_path = output or f"{settings.results_dir}/predictions.csv"

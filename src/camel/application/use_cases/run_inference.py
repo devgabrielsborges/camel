@@ -5,6 +5,7 @@ import gc
 import logging
 from collections.abc import Iterator
 
+from camel.application.ports.agent_port import AgentPort
 from camel.domain.entities.evaluation import Evaluation, EvaluationStatus
 from camel.domain.entities.session import Session
 from camel.domain.entities.trace import Trace
@@ -12,7 +13,6 @@ from camel.domain.services.prompt_renderer import PromptRenderer
 from camel.domain.value_objects.dataset_record import DatasetRecord
 from camel.infrastructure.adapters.duckdb_dataset import DuckDBDatasetAdapter
 from camel.infrastructure.adapters.mlflow_tracker import MLflowTrackerAdapter
-from camel.infrastructure.adapters.openai_agent import OpenAIAgentAdapter
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +32,7 @@ class RunInference:
     def __init__(
         self,
         dataset_adapter: DuckDBDatasetAdapter,
-        agent_adapter: OpenAIAgentAdapter,
+        agent_adapter: AgentPort,
         tracker_adapter: MLflowTrackerAdapter,
         prompt_renderer: PromptRenderer,
         batch_size: int,

@@ -32,7 +32,7 @@ def prepare(
     """Download the evaluation dataset and run dbt transformations."""
     from camel.infrastructure.config.settings import Settings
 
-    settings = Settings()  # type: ignore[call-arg]
+    settings = Settings()
 
     raw_path = Path(settings.raw_parquet_path)
 

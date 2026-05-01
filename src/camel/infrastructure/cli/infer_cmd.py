@@ -45,6 +45,12 @@ def infer(
         "-e",
         help="MLflow experiment name (default: WeniEval)",
     ),
+    model: Optional[str] = typer.Option(
+        None,
+        "--model",
+        "-m",
+        help="Model name (openai: model name, litellm: provider/model)",
+    ),
 ) -> None:
     """Run batch inference: register prompt -> register dataset -> run inferences with MLflow tracing."""
     from camel.application.use_cases.register_dataset import RegisterDataset
@@ -55,25 +61,26 @@ def infer(
     from camel.domain.value_objects.prompt_template import PromptTemplate
     from camel.infrastructure.adapters.duckdb_dataset import DuckDBDatasetAdapter
     from camel.infrastructure.adapters.mlflow_tracker import MLflowTrackerAdapter
-    from camel.infrastructure.adapters.openai_agent import OpenAIAgentAdapter
     from camel.infrastructure.config.settings import Settings
+    from camel.infrastructure.factories.agent_factory import create_agent_adapter
 
-    settings = Settings()  # type: ignore[call-arg]
+    settings = Settings()
 
     cat_list = categories.split(",") if categories else DEFAULT_CATEGORIES
     exp_name = experiment or settings.experiment_name
     bs = batch_size or settings.batch_size
     conc = concurrency or settings.concurrency
+    effective_model = model or settings.openai_model
 
     dataset_adapter = DuckDBDatasetAdapter(db_path=settings.duckdb_path)
-    agent_adapter = OpenAIAgentAdapter(model=settings.openai_model)
+    agent_adapter = create_agent_adapter(settings, model_override=model)
     tracker_adapter = MLflowTrackerAdapter(tracking_uri=settings.mlflow_tracking_uri)
     renderer = PromptRenderer(template_path=settings.prompt_template_path)
 
     evaluation = Evaluation(
         evaluation_id=str(uuid.uuid4()),
         experiment_name=exp_name,
-        eval_model=ModelConfig(model_name=settings.openai_model, temperature=0.0),
+        eval_model=ModelConfig(model_name=effective_model, temperature=0.0),
         prompt_version="",
         dataset_name=settings.dataset_name,
     )

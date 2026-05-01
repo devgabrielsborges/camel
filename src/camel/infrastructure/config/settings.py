@@ -13,9 +13,11 @@ class Settings(BaseSettings):
 
     mlflow_tracking_uri: str = "http://localhost:5000"
 
-    openai_api_key: str = Field(min_length=1)
+    openai_api_key: str = Field(default="", min_length=0)
     openai_model: str = "gpt-4o-mini"
     judge_model: str = "gpt-4o-mini"
+
+    llm_provider: str = Field(default="openai", description="openai or litellm")
 
     batch_size: int = 50
     concurrency: int = 10

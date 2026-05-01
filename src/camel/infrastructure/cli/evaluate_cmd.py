@@ -50,7 +50,7 @@ def evaluate(
     from camel.infrastructure.config.settings import Settings
     from camel.infrastructure.factories.scorer_factory import create_scorers
 
-    settings = Settings()  # type: ignore[call-arg]
+    settings = Settings()
 
     exp_name = experiment or settings.experiment_name
     cat_list = categories.split(",") if categories else DEFAULT_CATEGORIES
