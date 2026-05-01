@@ -152,11 +152,11 @@
 
 **Purpose**: End-to-end validation, full run, documentation
 
-- [ ] T059 End-to-end test on 2-sample subset (full pipeline smoke test + tracemalloc peak < 8GB assertion) in tests/integration/test_e2e_pipeline.py
-- [ ] T060 [P] Validate quickstart.md steps work from clean state
+- [X] T059 End-to-end test on 2-sample subset (full pipeline smoke test + tracemalloc peak < 8GB assertion) in tests/integration/test_e2e_pipeline.py
+- [X] T060 [P] Validate quickstart.md steps work from clean state
 - [ ] T061 Full dataset run (all 3,887 rows) and generate report
-- [ ] T062 [P] Verify all code passes pre-commit hooks (black, isort, autoflake, mypy, vulture)
-- [ ] T063 [P] Update README.md with project overview, setup, and usage
+- [X] T062 [P] Verify all code passes pre-commit hooks (black, isort, autoflake, mypy, vulture)
+- [X] T063 [P] Update README.md with project overview, setup, and usage
 
 ---
 
