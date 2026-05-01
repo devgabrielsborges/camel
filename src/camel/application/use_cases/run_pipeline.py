@@ -48,6 +48,8 @@ class RunPipeline:
         limit: int | None = None,
         prompt_version_uri: str = "",
     ) -> PipelineResult:
+        self._tracker.set_experiment(evaluation.experiment_name)
+
         logger.info("Pipeline step 1/5: Register prompt")
         if prompt_template is not None:
             prompt_version_uri = self._tracker.register_prompt(prompt_template)

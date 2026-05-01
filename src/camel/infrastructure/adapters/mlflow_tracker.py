@@ -36,6 +36,9 @@ class MLflowTrackerAdapter:
     def __init__(self, tracking_uri: str) -> None:
         mlflow.set_tracking_uri(tracking_uri)
 
+    def set_experiment(self, experiment_name: str) -> None:
+        mlflow.set_experiment(experiment_name)
+
     def enable_autolog(self) -> None:
         _patch_livespan_set_tag()
         mlflow.openai.autolog()

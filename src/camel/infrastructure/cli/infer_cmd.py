@@ -78,6 +78,8 @@ def infer(
         dataset_name=settings.dataset_name,
     )
 
+    tracker_adapter.set_experiment(exp_name)
+
     typer.echo("Step 1/3: Registering prompt in MLflow...")
     prompt_version_uri = ""
     try:
