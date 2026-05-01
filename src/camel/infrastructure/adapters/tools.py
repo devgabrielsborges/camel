@@ -10,9 +10,7 @@ def build_knowledge_tool(chunks: list[Chunk]) -> FunctionTool:
     content_blocks = [chunk.content for chunk in chunks]
     joined = "\n\n---\n\n".join(content_blocks) if content_blocks else ""
 
-    async def search_knowledge_base(
-        ctx: RunContextWrapper[None], query: str
-    ) -> str:
+    async def search_knowledge_base(ctx: RunContextWrapper[None], query: str) -> str:
         """Search the knowledge base for reference material related to the user query.
 
         Args:
