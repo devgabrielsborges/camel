@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import inspect
 import logging
 from collections import defaultdict
 from typing import Any
@@ -76,11 +77,14 @@ class RunEvaluation:
 
                     for scorer_fn in self._scorers:
                         try:
-                            result = scorer_fn(
-                                inputs=inputs,
-                                outputs=outputs,
-                                expectations=expectations,
-                            )
+                            kwargs: dict[str, Any] = {
+                                "inputs": inputs,
+                                "outputs": outputs,
+                            }
+                            sig = inspect.signature(scorer_fn)
+                            if "expectations" in sig.parameters:
+                                kwargs["expectations"] = expectations
+                            result = scorer_fn(**kwargs)
                             if isinstance(result, Feedback):
                                 score = _feedback_to_score(
                                     result, getattr(scorer_fn, "name", "unknown")
