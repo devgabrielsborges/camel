@@ -17,14 +17,14 @@
 
 ## Phase 3: User Story 1 — Capability Evaluation with Pass@k + Groundedness (P1)
 
-- [ ] T008 [US1] Implement `TruLensGroundednessAdapter` in `src/camel/infrastructure/adapters/trulens_groundedness.py`
-- [ ] T009 [US1] Add groundedness provider factory function in `src/camel/infrastructure/factories/scorer_factory.py`
-- [ ] T010 [US1] Add groundedness MLflow scorer wrapper in `src/camel/infrastructure/adapters/mlflow_scorer.py`
-- [ ] T011 [US1] Modify `RunInference` to generate k=3 responses per question in `src/camel/application/use_cases/run_inference.py`
-- [ ] T012 [US1] Modify `RunEvaluation` to compute groundedness + pass@k in `src/camel/application/use_cases/run_evaluation.py`
-- [ ] T013 [US1] Modify `ExportResults` to include groundedness_score, pass_at_k, pass_at_k_best_score columns in `src/camel/application/use_cases/export_results.py`
-- [ ] T014 [US1] Update dbt gold model to include groundedness column in `dbt/models/gold/fct_evaluation_scores.sql`
-- [ ] T015 [US1] Create unit test for TruLens adapter in `tests/unit/infrastructure/test_trulens_groundedness.py`
+- [x] T008 [US1] Implement `TruLensGroundednessAdapter` in `src/camel/infrastructure/adapters/trulens_groundedness.py`
+- [x] T009 [US1] Add groundedness provider factory function in `src/camel/infrastructure/factories/scorer_factory.py`
+- [x] T010 [US1] Add groundedness MLflow scorer wrapper in `src/camel/infrastructure/adapters/mlflow_scorer.py`
+- [x] T011 [US1] Modify `RunInference` to generate k=3 responses per question in `src/camel/application/use_cases/run_inference.py`
+- [x] T012 [US1] Modify `RunEvaluation` to compute groundedness + pass@k in `src/camel/application/use_cases/run_evaluation.py`
+- [x] T013 [US1] Modify `ExportResults` to include groundedness_score, pass_at_k, pass_at_k_best_score columns in `src/camel/application/use_cases/export_results.py`
+- [x] T014 [US1] Update dbt gold model to include groundedness column in `dbt/models/gold/fct_evaluation_scores.sql`
+- [x] T015 [US1] Create unit test for TruLens adapter in `tests/unit/infrastructure/test_trulens_groundedness.py`
 
 ## Phase 4: User Story 2 — Explainability via Failure Mode Categorization (P2)
 
