@@ -93,6 +93,11 @@ def run_pipeline(
         "--no-llm-judge",
         help="Skip LLM-as-judge scorers (deterministic only)",
     ),
+    no_cache: bool = typer.Option(
+        False,
+        "--no-cache",
+        help="Disable inference cache (always call the LLM)",
+    ),
 ) -> None:
     """Execute the full pipeline: register prompt -> register dataset -> infer -> evaluate -> export."""
     from camel.application.use_cases.export_results import ExportResults
@@ -122,8 +127,18 @@ def run_pipeline(
     output_path = output or f"{settings.results_dir}/predictions.csv"
     model_name = model or settings.openai_model
 
+    from camel.infrastructure.adapters.cached_agent import CachedAgentAdapter
+
     dataset_adapter = DuckDBDatasetAdapter(db_path=settings.duckdb_path)
-    agent_adapter = create_agent_adapter(settings, model_override=model_name)
+    raw_agent = create_agent_adapter(settings, model_override=model_name)
+    if no_cache:
+        agent_adapter = raw_agent
+    else:
+        agent_adapter = CachedAgentAdapter(
+            agent=raw_agent,
+            cache_dir=settings.inference_cache_dir,
+            model=model_name,
+        )
     tracker_adapter = MLflowTrackerAdapter(tracking_uri=settings.mlflow_tracking_uri)
     renderer = PromptRenderer(template_path=settings.prompt_template_path)
     scorers = create_scorers(settings, no_llm_judge=no_llm_judge)
@@ -242,3 +257,8 @@ def run_pipeline(
         typer.echo(f"\nVerdict: {result.verdict.verdict.value}")
         for reason in result.verdict.reasons:
             typer.echo(f"  - {reason}")
+
+    if isinstance(agent_adapter, CachedAgentAdapter):
+        typer.echo(
+            f"\nCache: {agent_adapter.hit_count} hits, " f"{agent_adapter.miss_count} misses"
+        )
