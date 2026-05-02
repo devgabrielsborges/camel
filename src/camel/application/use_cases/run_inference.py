@@ -39,6 +39,7 @@ class RunInference:
         prompt_renderer: PromptRenderer,
         batch_size: int,
         concurrency: int,
+        pass_at_k: int = 1,
     ) -> None:
         self._dataset = dataset_adapter
         self._agent = agent_adapter
@@ -46,6 +47,7 @@ class RunInference:
         self._renderer = prompt_renderer
         self._batch_size = batch_size
         self._concurrency = concurrency
+        self._pass_at_k = pass_at_k
 
     async def execute(
         self,
@@ -66,43 +68,54 @@ class RunInference:
             processed = 0
 
             for batch in _chunked(rows, self._batch_size):
-                tasks = []
+                tasks: list[tuple[DatasetRecord, list[asyncio.Task[Trace]]]] = []
                 for record in batch:
                     if limit is not None and processed >= limit:
                         break
 
                     prompt_tpl = self._renderer.render(record, prompt_version_uri)
+                    record_tasks: list[asyncio.Task[Trace]] = []
 
-                    async def _invoke(
-                        rec: DatasetRecord = record,
-                        prompt: str = prompt_tpl.rendered_content or "",
-                    ) -> Trace:
-                        async with semaphore:
-                            return await self._agent.invoke(rec, prompt)
+                    for _attempt in range(self._pass_at_k):
 
-                    tasks.append(_invoke())
+                        async def _invoke(
+                            rec: DatasetRecord = record,
+                            prompt: str = prompt_tpl.rendered_content or "",
+                        ) -> Trace:
+                            async with semaphore:
+                                return await self._agent.invoke(rec, prompt)
+
+                        record_tasks.append(asyncio.ensure_future(_invoke()))
+
+                    tasks.append((record, record_tasks))
                     processed += 1
 
                 if not tasks:
                     break
 
-                results = await asyncio.gather(*tasks, return_exceptions=True)
+                all_coros = [t for _, rts in tasks for t in rts]
+                await asyncio.gather(*all_coros, return_exceptions=True)
 
-                for i, trace_or_exc in enumerate(results):
-                    if isinstance(trace_or_exc, BaseException):
-                        logger.error("Inference failed for record: %s", trace_or_exc)
-                        continue
-
-                    trace_obj = trace_or_exc
-                    assert isinstance(trace_obj, Trace)
-                    record = batch[i]
+                for record, record_tasks in tasks:
                     session = Session(
                         session_id=record.id,
                         evaluation_id=evaluation.evaluation_id,
                         dataset_record=record,
                     )
-                    session.add_trace(trace_obj)
-                    evaluation.add_session(session)
+                    for task in record_tasks:
+                        if task.done() and not task.cancelled():
+                            exc = task.exception()
+                            if exc is not None:
+                                logger.error("Inference failed for record: %s", exc)
+                                continue
+                            trace_obj = task.result()
+                            assert isinstance(trace_obj, Trace)
+                            session.add_trace(trace_obj)
+                        else:
+                            logger.error("Task not completed for record %s", record.id)
+
+                    if session.traces:
+                        evaluation.add_session(session)
 
                 await self._agent.flush()
                 gc.collect()

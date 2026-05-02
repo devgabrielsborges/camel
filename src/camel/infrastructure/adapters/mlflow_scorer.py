@@ -73,6 +73,19 @@ def refusal_detection(
     return Feedback(name="refusal_detection", value=bool(result.value))
 
 
+@scorer
+def groundedness(
+    *,
+    inputs: dict[str, Any] | None = None,
+    outputs: dict[str, Any] | None = None,
+    expectations: dict[str, Any] | None = None,
+) -> Feedback:
+    score_val = (outputs or {}).get("groundedness_score")
+    if score_val is None:
+        return Feedback(name="groundedness", error="N/A: not computed")
+    return Feedback(name="groundedness", value=float(score_val))
+
+
 def get_deterministic_scorers() -> list[Any]:
     return [token_overlap_f1, class_exact_match, refusal_detection]
 

@@ -15,7 +15,10 @@ predictions as (
         cast(guidelines_score as varchar) as guidelines_score,
         cast(token_overlap_f1 as varchar) as token_overlap_f1,
         cast(class_exact_match as varchar) as class_exact_match,
-        cast(refusal_detection as varchar) as refusal_detection
+        cast(refusal_detection as varchar) as refusal_detection,
+        cast(groundedness_score as varchar) as groundedness_score,
+        cast(pass_at_k as varchar) as pass_at_k,
+        cast(pass_at_k_best_score as varchar) as pass_at_k_best_score
     from raw_predictions
 ),
 
@@ -80,6 +83,43 @@ unpivoted as (
         end as score_value
     from predictions
     where refusal_detection is not null and refusal_detection != ''
+
+    union all
+
+    select
+        session_id,
+        data_category_QA,
+        language,
+        'groundedness' as scorer_name,
+        try_cast(groundedness_score as double) as score_value
+    from predictions
+    where groundedness_score is not null and groundedness_score != ''
+
+    union all
+
+    select
+        session_id,
+        data_category_QA,
+        language,
+        'pass_at_k' as scorer_name,
+        case
+            when lower(pass_at_k) = 'true' then 1.0
+            when lower(pass_at_k) = 'false' then 0.0
+            else try_cast(pass_at_k as double)
+        end as score_value
+    from predictions
+    where pass_at_k is not null and pass_at_k != ''
+
+    union all
+
+    select
+        session_id,
+        data_category_QA,
+        language,
+        'pass_at_k_best_score' as scorer_name,
+        try_cast(pass_at_k_best_score as double) as score_value
+    from predictions
+    where pass_at_k_best_score is not null and pass_at_k_best_score != ''
 )
 
 select

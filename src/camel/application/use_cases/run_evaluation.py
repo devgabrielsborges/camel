@@ -8,6 +8,7 @@ from typing import Any
 
 from mlflow.entities import Feedback
 
+from camel.application.ports.groundedness_port import GroundednessPort
 from camel.domain.entities.evaluation import Evaluation, EvaluationStatus
 from camel.domain.services.aggregation import (
     AggregatedMetric,
@@ -15,6 +16,7 @@ from camel.domain.services.aggregation import (
     aggregate_by_category,
     aggregate_scores,
 )
+from camel.domain.services.scoring import pass_at_k, token_overlap_f1
 from camel.domain.value_objects.score import Score
 from camel.infrastructure.adapters.mlflow_tracker import MLflowTrackerAdapter
 
@@ -47,9 +49,13 @@ class RunEvaluation:
         self,
         scorers: list[Any],
         tracker_adapter: MLflowTrackerAdapter,
+        groundedness_scorer: GroundednessPort | None = None,
+        pass_at_k_threshold: float = 0.3,
     ) -> None:
         self._scorers = scorers
         self._tracker = tracker_adapter
+        self._groundedness = groundedness_scorer
+        self._pass_at_k_threshold = pass_at_k_threshold
 
     def execute(
         self,
@@ -119,7 +125,45 @@ class RunEvaluation:
                                 exc_info=True,
                             )
 
+                    if self._groundedness and record.content:
+                        try:
+                            g_score, g_reasons = self._groundedness.score(
+                                source=record.content,
+                                statement=trace_obj.output_text,
+                            )
+                            groundedness_score = Score(
+                                scorer_name="groundedness",
+                                value=round(g_score, 4),
+                                rationale=g_reasons,
+                            )
+                            trace_obj.add_score(groundedness_score)
+                            all_scores.append(groundedness_score)
+                            scores_by_category[record.data_category_qa].append(groundedness_score)
+                        except Exception:
+                            logger.warning("Groundedness scoring failed", exc_info=True)
+
                     scored_count += 1
+
+                if len(session.traces) > 1:
+                    responses = [t.output_text for t in session.traces]
+                    pk_result = pass_at_k(
+                        question_id=record.id,
+                        responses=responses,
+                        reference=record.content,
+                        scorer_fn=token_overlap_f1,
+                        threshold=self._pass_at_k_threshold,
+                    )
+                    pk_score = Score(
+                        scorer_name="pass_at_k",
+                        value=pk_result.passed,
+                        metadata={
+                            "k": pk_result.k,
+                            "best_score": pk_result.best_score,
+                        },
+                    )
+                    session.traces[0].add_score(pk_score)
+                    all_scores.append(pk_score)
+                    scores_by_category[record.data_category_qa].append(pk_score)
 
                 if on_progress is not None:
                     on_progress(scored_count, total_sessions)

@@ -76,7 +76,5 @@ class TestPassAtK:
             "Unrelated text.",
         ]
         result = pass_at_k("q9", responses, reference, token_overlap_f1)
-        individual_scores = [
-            token_overlap_f1(r, reference).value for r in responses
-        ]
+        individual_scores = [token_overlap_f1(r, reference).value for r in responses]
         assert result.best_score == round(max(float(s) for s in individual_scores if s is not None), 4)  # type: ignore[arg-type]
