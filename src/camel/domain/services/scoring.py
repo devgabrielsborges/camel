@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+from collections.abc import Callable
+
 import nltk
 import tiktoken
 from nltk.stem import SnowballStemmer
 from nltk.tokenize import word_tokenize
 
+from camel.domain.value_objects.pass_at_k_result import PassAtKResult
 from camel.domain.value_objects.score import Score
 
 nltk.download("punkt_tab", quiet=True)
@@ -103,3 +106,31 @@ def refusal_detection(response: str) -> Score:
                 metadata={"detected_language": lang},
             )
     return Score(scorer_name="refusal_detection", value=False)
+
+
+def pass_at_k(
+    question_id: str,
+    responses: list[str],
+    reference: str,
+    scorer_fn: Callable[[str, str], Score],
+    *,
+    threshold: float = 0.3,
+) -> PassAtKResult:
+    """Evaluate k responses and determine if at least one exceeds the threshold.
+
+    Uses the provided scorer_fn to score each response against the reference,
+    then checks if any score meets or exceeds the threshold.
+    """
+    scores = [scorer_fn(response, reference) for response in responses]
+    numeric_scores = [float(s.value) for s in scores if s.value is not None]
+    best = max(numeric_scores) if numeric_scores else 0.0
+    passed = best >= threshold
+
+    return PassAtKResult(
+        question_id=question_id,
+        k=len(responses),
+        responses=responses,
+        scores=scores,
+        passed=passed,
+        best_score=round(best, 4),
+    )
