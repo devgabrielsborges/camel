@@ -198,7 +198,7 @@ async def test_e2e_pipeline_smoke(
 
             for session in result.evaluation.sessions:
                 for trace in session.traces:
-                    assert len(trace.scores) == len(deterministic_scorers)
+                    assert len(trace.scores) >= len(deterministic_scorers)
 
             for metric in result.overall_metrics:
                 assert metric.count == 2

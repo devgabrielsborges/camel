@@ -16,6 +16,7 @@ from camel.domain.services.aggregation import (
     aggregate_by_category,
     aggregate_scores,
 )
+from camel.domain.services.failure_modes import classify_failure_mode
 from camel.domain.services.scoring import pass_at_k, token_overlap_f1
 from camel.domain.value_objects.score import Score
 from camel.infrastructure.adapters.mlflow_tracker import MLflowTrackerAdapter
@@ -142,6 +143,17 @@ class RunEvaluation:
                         except Exception:
                             logger.warning("Groundedness scoring failed", exc_info=True)
 
+                    failure_mode = classify_failure_mode(
+                        {s.scorer_name: s for s in trace_obj.scores},
+                        record.data_category_qa,
+                    )
+                    fm_score = Score(
+                        scorer_name="failure_mode",
+                        value=None,
+                        metadata={"failure_mode": str(failure_mode)},
+                    )
+                    trace_obj.add_score(fm_score)
+
                     scored_count += 1
 
                 if len(session.traces) > 1:
@@ -176,6 +188,17 @@ class RunEvaluation:
                 flat_metrics[f"{m.scorer_name}_mean"] = m.mean
                 flat_metrics[f"{m.scorer_name}_std"] = m.std
             flat_metrics["total_scored"] = float(scored_count)
+
+            fm_counts: dict[str, int] = defaultdict(int)
+            for s in all_scores:
+                if s.scorer_name == "failure_mode":
+                    fm = s.metadata.get("failure_mode", "unknown")
+                    fm_counts[fm] += 1
+            for fm_name, count in fm_counts.items():
+                flat_metrics[f"failure_mode_{fm_name}_count"] = float(count)
+            if scored_count > 0 and fm_counts:
+                for fm_name, count in fm_counts.items():
+                    flat_metrics[f"failure_mode_{fm_name}_rate"] = round(count / scored_count, 4)
 
             self._tracker.log_metrics(run_id, flat_metrics)
 

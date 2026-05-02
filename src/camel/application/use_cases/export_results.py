@@ -36,6 +36,7 @@ _CSV_COLUMNS: list[str] = [
     "groundedness_score",
     "pass_at_k",
     "pass_at_k_best_score",
+    "failure_mode",
 ]
 
 
@@ -93,6 +94,11 @@ class ExportResults:
                     else:
                         row["pass_at_k"] = ""
                         row["pass_at_k_best_score"] = ""
+
+                    fm_entry = scores_by_name.get("failure_mode")
+                    row["failure_mode"] = (
+                        fm_entry.metadata.get("failure_mode", "") if fm_entry else ""
+                    )
 
                     writer.writerow(row)
                     row_count += 1
