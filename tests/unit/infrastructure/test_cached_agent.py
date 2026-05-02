@@ -57,9 +57,7 @@ class TestCachedAgentAdapter:
         return agent
 
     @pytest.mark.asyncio
-    async def test_first_call_is_cache_miss(
-        self, cache_dir: str, mock_agent: AsyncMock
-    ) -> None:
+    async def test_first_call_is_cache_miss(self, cache_dir: str, mock_agent: AsyncMock) -> None:
         adapter = CachedAgentAdapter(agent=mock_agent, cache_dir=cache_dir, model="gpt-4o-mini")
         record = _make_record()
 
@@ -71,17 +69,13 @@ class TestCachedAgentAdapter:
         mock_agent.invoke.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_second_call_is_cache_hit(
-        self, cache_dir: str, mock_agent: AsyncMock
-    ) -> None:
+    async def test_second_call_is_cache_hit(self, cache_dir: str, mock_agent: AsyncMock) -> None:
         adapter = CachedAgentAdapter(agent=mock_agent, cache_dir=cache_dir, model="gpt-4o-mini")
         record = _make_record()
 
         await adapter.invoke(record, "system prompt")
 
-        adapter2 = CachedAgentAdapter(
-            agent=mock_agent, cache_dir=cache_dir, model="gpt-4o-mini"
-        )
+        adapter2 = CachedAgentAdapter(agent=mock_agent, cache_dir=cache_dir, model="gpt-4o-mini")
         result = await adapter2.invoke(record, "system prompt")
 
         assert result.output_text == "response-1"
@@ -121,9 +115,7 @@ class TestCachedAgentAdapter:
         assert r3.output_text == "resp-2"
         assert adapter.miss_count == 3
 
-        adapter2 = CachedAgentAdapter(
-            agent=mock_agent, cache_dir=cache_dir, model="gpt-4o-mini"
-        )
+        adapter2 = CachedAgentAdapter(agent=mock_agent, cache_dir=cache_dir, model="gpt-4o-mini")
         c1 = await adapter2.invoke(record, prompt)
         c2 = await adapter2.invoke(record, prompt)
         c3 = await adapter2.invoke(record, prompt)

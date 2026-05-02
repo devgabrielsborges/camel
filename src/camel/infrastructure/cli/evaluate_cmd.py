@@ -70,7 +70,10 @@ def evaluate(
     from camel.infrastructure.adapters.duckdb_dataset import DuckDBDatasetAdapter
     from camel.infrastructure.adapters.mlflow_tracker import MLflowTrackerAdapter
     from camel.infrastructure.config.settings import Settings
-    from camel.infrastructure.factories.scorer_factory import create_scorers
+    from camel.infrastructure.factories.scorer_factory import (
+        create_groundedness_scorer,
+        create_scorers,
+    )
 
     settings = Settings()
 
@@ -110,6 +113,7 @@ def evaluate(
             status=EvaluationStatus.EVALUATING,
         )
 
+        sessions_by_id: dict[str, Session] = {}
         for mlflow_trace in mlflow_traces:
             trace_id = str(mlflow_trace.get("trace_id", ""))
             request = mlflow_trace.get("request", "")
@@ -132,12 +136,15 @@ def evaluate(
                 latency_ms=0,
             )
 
-            session = Session(
-                session_id=group_id,
-                evaluation_id=evaluation.evaluation_id,
-                dataset_record=matched_record,
-            )
-            session.add_trace(trace_obj)
+            if group_id not in sessions_by_id:
+                sessions_by_id[group_id] = Session(
+                    session_id=group_id,
+                    evaluation_id=evaluation.evaluation_id,
+                    dataset_record=matched_record,
+                )
+            sessions_by_id[group_id].add_trace(trace_obj)
+
+        for session in sessions_by_id.values():
             evaluation.add_session(session)
 
         if not evaluation.sessions:
@@ -156,9 +163,11 @@ def evaluate(
         def _on_eval_progress(current: int, _total: int) -> None:
             progress.update(scoring_task, completed=current)
 
+        groundedness = create_groundedness_scorer(settings)
         use_case = RunEvaluation(
             scorers=scorers,
             tracker_adapter=tracker,
+            groundedness_scorer=groundedness,
         )
 
         overall, by_category = use_case.execute(
