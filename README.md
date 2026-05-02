@@ -119,8 +119,33 @@ to the OpenAI Agents SDK.
 | `token_overlap_f1` | Deterministic | Unigram F1 between response and content (tiktoken) |
 | `class_exact_match` | Deterministic | Agent's class vs ground-truth `chosen_class_id` |
 | `refusal_detection` | Deterministic | Detects refusal patterns (EN/PT/ES) via NLTK stemming |
+| `groundedness` | TruLens | Response grounded in source content (CoT reasoning) |
+| `pass@3` | Composite | At least 1 of 3 responses (temp=0.7) passes threshold |
+| `failure_mode` | Derived | Categorizes prediction into failure type |
 | `correctness` | LLM Judge | MLflow Correctness scorer against expected response |
 | `guidelines` | LLM Judge | MLflow Guidelines scorer against instructions |
+
+### Failure Modes
+
+Each prediction is classified into one of:
+
+| Mode | Condition |
+|------|-----------|
+| `correct_extraction` | High overlap + positivo category |
+| `correct_refusal` | Refusal detected + negativo category |
+| `false_refusal` | Refusal detected + positivo category |
+| `hallucination` | Moderate overlap + negativo category |
+| `off_topic` | Very low overlap + no refusal |
+| `partial_answer` | All other cases |
+
+### Capability Verdict
+
+After scoring, the pipeline produces a verdict: **capable**, **not_capable**, or **inconclusive**.
+
+Criteria:
+1. **Positivo**: mean `token_overlap_f1` >= threshold (model can extract answers)
+2. **Negativo**: refusal rate >= threshold OR low overlap (model avoids hallucination)
+3. **Discrimination**: significant delta between positivo/negativo overlap (model differentiates categories)
 
 ## Data Pipeline
 
@@ -161,13 +186,15 @@ All configuration via `.env`. See `.env.example` for the full list.
 |----------|-------------|---------|
 | `OPENAI_API_KEY` | OpenAI API key | — |
 | `OPENAI_MODEL` | Model for inference | `gpt-4o-mini` |
-| `JUDGE_MODEL` | Model for LLM-as-judge scoring | `gpt-4o-mini` |
+| `JUDGE_MODEL` | Model for LLM-as-judge and groundedness | `gpt-4o-mini` |
 | `LLM_PROVIDER` | `openai` or `litellm` | `openai` |
 | `MLFLOW_TRACKING_URI` | MLflow server URL | `http://localhost:5000` |
 | `RAW_PARQUET_PATH` | Bronze layer path | `data/bronze/train.parquet` |
 | `SILVER_PARQUET_PATH` | Silver layer path | `data/silver/train_sample.parquet` |
 | `SAMPLE_FRACTION` | Fraction of dataset to sample | `0.1` |
 | `SAMPLE_SEED` | Random seed for reproducibility | `42` |
+| `PASS_AT_K` | Number of responses per question for Pass@k | `3` |
+| `PASS_AT_K_TEMPERATURE` | Temperature for diverse Pass@k responses | `0.7` |
 | `BATCH_SIZE` | Rows per batch | `50` |
 | `CONCURRENCY` | Max concurrent calls | `10` |
 
@@ -175,4 +202,5 @@ All configuration via `.env`. See `.env.example` for the full list.
 
 Columns: `id, question, prediction, data_category_QA, language, model,
 correctness_score, guidelines_score, token_overlap_f1, class_exact_match,
-refusal_detection`
+refusal_detection, groundedness_score, pass_at_k, pass_at_k_best_score,
+failure_mode`

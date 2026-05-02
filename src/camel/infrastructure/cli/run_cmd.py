@@ -29,6 +29,7 @@ _STEP_LABELS: dict[int, str] = {
     3: "Running inference",
     4: "Scoring traces",
     5: "Exporting results",
+    6: "Computing verdict",
 }
 
 
@@ -107,7 +108,10 @@ def run_pipeline(
     from camel.infrastructure.adapters.mlflow_tracker import MLflowTrackerAdapter
     from camel.infrastructure.config.settings import Settings
     from camel.infrastructure.factories.agent_factory import create_agent_adapter
-    from camel.infrastructure.factories.scorer_factory import create_scorers
+    from camel.infrastructure.factories.scorer_factory import (
+        create_groundedness_scorer,
+        create_scorers,
+    )
 
     settings = Settings()
 
@@ -152,11 +156,15 @@ def run_pipeline(
         prompt_renderer=renderer,
         batch_size=bs,
         concurrency=conc,
+        pass_at_k=settings.pass_at_k,
     )
+
+    groundedness_scorer = create_groundedness_scorer(settings) if not no_llm_judge else None
 
     run_evaluation = RunEvaluation(
         scorers=scorers,
         tracker_adapter=tracker_adapter,
+        groundedness_scorer=groundedness_scorer,
     )
 
     export_results = ExportResults()
@@ -170,14 +178,14 @@ def run_pipeline(
     )
 
     with _create_progress() as progress:
-        steps_task = progress.add_task("Pipeline", total=5)
+        steps_task = progress.add_task("Pipeline", total=6)
         inference_task = progress.add_task("Inference", total=effective_total, visible=False)
         eval_task = progress.add_task("Scoring", total=effective_total, visible=False)
         export_task = progress.add_task("Exporting", total=effective_total, visible=False)
 
         def _on_step(step: int, _description: str) -> None:
             label = _STEP_LABELS.get(step, _description)
-            progress.update(steps_task, description=f"[{step}/5] {label}")
+            progress.update(steps_task, description=f"[{step}/6] {label}")
             if step == 3:
                 progress.update(inference_task, visible=True)
             elif step == 4:
@@ -186,6 +194,8 @@ def run_pipeline(
             elif step == 5:
                 progress.update(eval_task, visible=False)
                 progress.update(export_task, visible=True)
+            elif step == 6:
+                progress.update(export_task, visible=False)
 
         def _on_inference_progress(current: int, _total: int) -> None:
             progress.update(inference_task, completed=current)
@@ -216,7 +226,7 @@ def run_pipeline(
             typer.echo(f"Pipeline failed: {exc}", err=True)
             raise typer.Exit(code=1) from exc
 
-        progress.update(steps_task, completed=5, description="Pipeline complete")
+        progress.update(steps_task, completed=6, description="Pipeline complete")
 
     typer.echo(f"\nPipeline complete: {result.exported_rows} rows exported to {output_path}")
     typer.echo(f"MLflow run ID: {result.run_id}")
@@ -227,3 +237,8 @@ def run_pipeline(
         typer.echo("\nScorer Summary:")
         for m in result.overall_metrics:
             typer.echo(f"  {m.scorer_name}: mean={m.mean:.4f}, std={m.std:.4f}, n={m.count}")
+
+    if result.verdict:
+        typer.echo(f"\nVerdict: {result.verdict.verdict.value}")
+        for reason in result.verdict.reasons:
+            typer.echo(f"  - {reason}")

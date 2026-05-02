@@ -28,9 +28,7 @@ _REFUSAL_THRESHOLD = 0.3
 _DISCRIMINATION_THRESHOLD = 0.1
 
 
-def _find_metric(
-    metrics: list[AggregatedMetric], scorer_name: str
-) -> AggregatedMetric | None:
+def _find_metric(metrics: list[AggregatedMetric], scorer_name: str) -> AggregatedMetric | None:
     return next((m for m in metrics if m.scorer_name == scorer_name), None)
 
 
