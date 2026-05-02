@@ -8,7 +8,7 @@ seed-paths: ["seeds"]
 vars:
   raw_parquet_path: "../data/bronze/train.parquet"
   silver_parquet_path: "../data/silver/train_sample.parquet"
-  results_csv_path: "../results/predictions.csv"
+  results_jsonl_path: "../results/predictions.jsonl"
 
 models:
   camel_eval:

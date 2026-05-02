@@ -198,9 +198,13 @@ All configuration via `.env`. See `.env.example` for the full list.
 | `BATCH_SIZE` | Rows per batch | `50` |
 | `CONCURRENCY` | Max concurrent calls | `10` |
 
-## Output CSV
+## Output JSONL
 
-Columns: `id, question, prediction, data_category_QA, language, model,
+Results are exported as JSONL (one JSON object per line) to `results/predictions.jsonl`.
+New runs **append** to the file, so historical results are preserved. Each record includes
+`run_id` and `timestamp` fields to distinguish runs.
+
+Fields: `id, run_id, timestamp, question, prediction, data_category_QA, language, model,
 correctness_score, guidelines_score, token_overlap_f1, class_exact_match,
 refusal_detection, groundedness_score, pass_at_k, pass_at_k_best_score,
 failure_mode`

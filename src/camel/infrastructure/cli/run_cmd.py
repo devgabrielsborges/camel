@@ -80,7 +80,7 @@ def run_pipeline(
         None,
         "--output",
         "-o",
-        help="Output CSV path (overrides RESULTS_DIR env var)",
+        help="Output JSONL path (overrides RESULTS_DIR env var)",
     ),
     model: Optional[str] = typer.Option(
         None,
@@ -124,7 +124,7 @@ def run_pipeline(
     exp_name = experiment or settings.experiment_name
     bs = batch_size or settings.batch_size
     conc = concurrency or settings.concurrency
-    output_path = output or f"{settings.results_dir}/predictions.csv"
+    output_path = output or f"{settings.results_dir}/predictions.jsonl"
     model_name = model or settings.openai_model
 
     from camel.infrastructure.adapters.cached_agent import CachedAgentAdapter

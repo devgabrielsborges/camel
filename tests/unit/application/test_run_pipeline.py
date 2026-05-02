@@ -113,7 +113,7 @@ async def test_pipeline_executes_all_phases(
     )
 
     with tempfile.TemporaryDirectory() as tmpdir:
-        output_path = str(Path(tmpdir) / "predictions.csv")
+        output_path = str(Path(tmpdir) / "predictions.jsonl")
 
         result = await pipeline.execute(
             evaluation=Evaluation(
@@ -136,7 +136,7 @@ async def test_pipeline_executes_all_phases(
     mock_run_evaluation.execute.assert_called_once()
     mock_export_results.execute.assert_called_once()
     mock_tracker.end_run.assert_called_once()
-    mock_tracker.disable_autolog.assert_called_once()
+    assert mock_tracker.disable_autolog.call_count == 2
     assert result.run_id == "run-123"
     assert result.evaluation.status == EvaluationStatus.EVALUATING
 
@@ -169,7 +169,7 @@ async def test_pipeline_halts_on_inference_failure(
                 dataset_name="test_dataset",
             ),
             categories=["positivo"],
-            output_path="/tmp/test.csv",
+            output_path="/tmp/test.jsonl",
         )
 
     mock_run_evaluation.execute.assert_not_called()
@@ -209,7 +209,7 @@ async def test_pipeline_halts_on_evaluation_failure(
                 dataset_name="test_dataset",
             ),
             categories=["positivo"],
-            output_path="/tmp/test.csv",
+            output_path="/tmp/test.jsonl",
         )
 
     mock_export_results.execute.assert_not_called()
@@ -250,7 +250,7 @@ async def test_pipeline_halts_on_export_failure(
                 dataset_name="test_dataset",
             ),
             categories=["positivo"],
-            output_path="/tmp/test.csv",
+            output_path="/tmp/test.jsonl",
         )
 
 
@@ -279,7 +279,7 @@ async def test_pipeline_passes_limit_to_inference(
     )
 
     with tempfile.TemporaryDirectory() as tmpdir:
-        output_path = str(Path(tmpdir) / "predictions.csv")
+        output_path = str(Path(tmpdir) / "predictions.jsonl")
 
         await pipeline.execute(
             evaluation=Evaluation(
