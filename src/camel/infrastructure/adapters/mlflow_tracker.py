@@ -66,22 +66,50 @@ class MLflowTrackerAdapter:
 
     def register_prompt(self, template: PromptTemplate) -> str:
         raw_content = Path(template.template_path).read_text(encoding="utf-8")
+        prompt_name = Path(template.template_path).stem
+
+        existing = self._load_latest_prompt(prompt_name)
+        if existing is not None and existing.template == raw_content:
+            logger.info(
+                "Reusing existing prompt '%s' version %s (template unchanged)",
+                existing.name,
+                existing.version,
+            )
+            return f"prompts:/{existing.name}/{existing.version}"
+
         prompt_version = mlflow.genai.register_prompt(
-            name=Path(template.template_path).stem,
+            name=prompt_name,
             template=raw_content,
             commit_message=f"Register prompt from {template.template_path}",
             tags={"template_engine": "jinja2"},
         )
         return f"prompts:/{prompt_version.name}/{prompt_version.version}"
 
+    @staticmethod
+    def _load_latest_prompt(name: str) -> Any:
+        try:
+            return mlflow.genai.load_prompt(name)
+        except Exception:
+            return None
+
     def register_dataset(
         self,
         name: str,
         records: list[dict[str, object]],
     ) -> None:
-        dataset = mlflow.genai.create_dataset(name=name)
+        dataset = self._get_or_create_dataset(name)
         dataset.merge_records(records)
         logger.info("Registered dataset '%s' with %d records", name, len(records))
+
+    @staticmethod
+    def _get_or_create_dataset(name: str) -> Any:
+        try:
+            dataset = mlflow.genai.get_dataset(name=name)
+            logger.info("Reusing existing dataset '%s'", name)
+            return dataset
+        except Exception:
+            logger.info("Creating new dataset '%s'", name)
+            return mlflow.genai.create_dataset(name=name)
 
     def log_metrics(self, run_id: str, metrics: dict[str, float]) -> None:
         mlflow.log_metrics(metrics, run_id=run_id)
