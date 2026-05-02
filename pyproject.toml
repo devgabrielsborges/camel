@@ -21,10 +21,11 @@ dependencies = [
     "litellm>=1.83.0",
     "mlflow>=3.11.1",
     "nltk>=3.9.4",
-    "openai-agents>=0.14.8",
+    "openai-agents[litellm]>=0.14.8",
     "psycopg2-binary>=2.9.12",
     "pydantic>=2.13.3",
     "pydantic-settings>=2.9.1",
+    "rich>=14.0.0",
     "tiktoken>=0.9.0",
     "typer>=0.25.1",
 ]

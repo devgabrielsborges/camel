@@ -54,6 +54,34 @@ class TestClassExactMatch:
         score = class_exact_match("response", "A1")
         assert score.scorer_name == "class_exact_match"
 
+    def test_match_by_class_name(self) -> None:
+        score = class_exact_match(
+            "Sobre comparação de aeroportos, o melhor é...",
+            "A2",
+            class_name="comparação de aeroportos",
+        )
+        assert score.value is True
+
+    def test_match_by_class_name_underscore(self) -> None:
+        score = class_exact_match(
+            "Suas preferencias pessoais são importantes.",
+            "A3",
+            class_name="preferencias_pessoais",
+        )
+        assert score.value is True
+
+    def test_no_match_with_class_name(self) -> None:
+        score = class_exact_match(
+            "O tempo está bom hoje.",
+            "A3",
+            class_name="preferencias_pessoais",
+        )
+        assert score.value is False
+
+    def test_id_takes_priority_over_class_name(self) -> None:
+        score = class_exact_match("[A3] resposta.", "A3", class_name="pagamento")
+        assert score.value is True
+
 
 class TestRefusalDetection:
     def test_no_refusal(self) -> None:

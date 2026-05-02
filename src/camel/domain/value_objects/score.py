@@ -7,9 +7,13 @@ from pydantic import BaseModel
 
 class Score(BaseModel, frozen=True):
     scorer_name: str
-    value: float | bool
+    value: float | bool | None
     rationale: str | None = None
     metadata: dict[str, Any] = {}
+
+    @property
+    def is_applicable(self) -> bool:
+        return self.value is not None
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, Score):
