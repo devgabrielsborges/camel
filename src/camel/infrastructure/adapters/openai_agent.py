@@ -62,7 +62,7 @@ class OpenAIAgentAdapter:
     def __init__(self, model: str, api_base: str | None = None) -> None:
         self._model = model
         self._agent_model: str | LitellmModel = (
-            LitellmModel(model=model, api_base=api_base)
+            LitellmModel(model=model, base_url=api_base)
             if _needs_litellm(model)
             else model
         )
