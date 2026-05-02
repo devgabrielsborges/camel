@@ -33,6 +33,8 @@ class Settings(BaseSettings):
     experiment_name: str = "WeniEval"
     dataset_name: str = "weni_eval_dataset"
 
+    ollama_api_base: str = "http://localhost:11434"
+
     duckdb_path: str = "data/camel.duckdb"
     raw_parquet_path: str = "data/raw/train.parquet"
     prompt_template_path: str = "prompts/system_prompt.j2"

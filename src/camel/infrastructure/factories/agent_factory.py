@@ -11,8 +11,8 @@ def create_agent_adapter(settings: Settings, *, model_override: str | None = Non
     if provider == "litellm":
         from camel.infrastructure.adapters.litellm_agent import LiteLLMAgentAdapter
 
-        return LiteLLMAgentAdapter(model=model)
+        return LiteLLMAgentAdapter(model=model, api_base=settings.ollama_api_base)
 
     from camel.infrastructure.adapters.openai_agent import OpenAIAgentAdapter
 
-    return OpenAIAgentAdapter(model=model)
+    return OpenAIAgentAdapter(model=model, api_base=settings.ollama_api_base)

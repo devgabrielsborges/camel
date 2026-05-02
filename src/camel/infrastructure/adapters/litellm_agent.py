@@ -41,8 +41,9 @@ def _build_knowledge_content(chunks: list[Chunk]) -> str:
 
 
 class LiteLLMAgentAdapter:
-    def __init__(self, model: str) -> None:
+    def __init__(self, model: str, api_base: str | None = None) -> None:
         self._model = model
+        self._api_base = api_base
 
     async def invoke(self, record: DatasetRecord, system_prompt: str) -> Trace:
         knowledge_content = _build_knowledge_content(record.chunks_big)
@@ -65,6 +66,7 @@ class LiteLLMAgentAdapter:
                 messages=messages,
                 tools=[tool_spec],
                 tool_choice="auto",
+                api_base=self._api_base,
             )
 
             choice = response.choices[0]
