@@ -6,6 +6,7 @@ import shutil
 import subprocess
 from pathlib import Path
 
+import pandas as pd
 import typer
 
 from camel.infrastructure.cli.app import app
@@ -14,6 +15,7 @@ logger = logging.getLogger(__name__)
 
 HF_DATASET_DEFAULT = "Weni/WeniEval-Benchmark-2.0.0"
 HF_SPLIT_DEFAULT = "train"
+VALID_CATEGORIES = ["positivo", "negativo"]
 
 
 @app.command()
@@ -28,13 +30,19 @@ def prepare(
         "--skip-download",
         help="Skip dataset download (use existing parquet file)",
     ),
+    skip_sample: bool = typer.Option(
+        False,
+        "--skip-sample",
+        help="Skip stratified sampling (use existing silver parquet)",
+    ),
 ) -> None:
-    """Download the evaluation dataset and run dbt transformations."""
+    """Download the evaluation dataset, apply stratified sampling, and run dbt transformations."""
     from camel.infrastructure.config.settings import Settings
 
     settings = Settings()
 
     raw_path = Path(settings.raw_parquet_path)
+    silver_path = Path(settings.silver_parquet_path)
 
     if not skip_download:
         _download_dataset(raw_path)
@@ -43,6 +51,19 @@ def prepare(
         raise typer.Exit(code=1)
     else:
         typer.echo(f"Skipping download, using existing {raw_path}")
+
+    if not skip_sample:
+        _stratified_sample(
+            raw_path,
+            silver_path,
+            fraction=settings.sample_fraction,
+            seed=settings.sample_seed,
+        )
+    elif not silver_path.exists():
+        typer.echo(f"Silver parquet not found at {silver_path}", err=True)
+        raise typer.Exit(code=1)
+    else:
+        typer.echo(f"Skipping sampling, using existing {silver_path}")
 
     _run_dbt(gold=gold)
 
@@ -64,12 +85,40 @@ def _download_dataset(raw_path: Path) -> None:
         ds.to_parquet(str(raw_path))
     except ImportError:
         typer.echo(
-            "The 'datasets' package is required for download. " "Install it with: uv add datasets",
+            "The 'datasets' package is required for download. Install it with: uv add datasets",
             err=True,
         )
         raise typer.Exit(code=1)
 
     typer.echo(f"Dataset saved to {raw_path}")
+
+
+def _stratified_sample(
+    raw_path: Path,
+    silver_path: Path,
+    *,
+    fraction: float,
+    seed: int,
+) -> None:
+    """Filter to valid categories and apply stratified sampling preserving class proportions."""
+    silver_path.parent.mkdir(parents=True, exist_ok=True)
+
+    typer.echo(f"Applying stratified sampling (fraction={fraction}, seed={seed})...")
+
+    df = pd.read_parquet(raw_path)
+    df = df[df.data_category_QA.isin(VALID_CATEGORIES)]
+
+    total_before = len(df)
+    weights = df.data_category_QA.map(1 / df.data_category_QA.value_counts())
+    sample = df.sample(int(len(df) * fraction), random_state=seed, weights=weights)
+
+    sample.to_parquet(str(silver_path), index=False)
+
+    distribution = sample.data_category_QA.value_counts()
+    typer.echo(
+        f"Silver layer: {len(sample)} records sampled from {total_before} "
+        f"(positivo={distribution.get('positivo', 0)}, negativo={distribution.get('negativo', 0)})"
+    )
 
 
 def _run_dbt(gold: bool) -> None:

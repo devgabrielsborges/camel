@@ -36,6 +36,11 @@ class Settings(BaseSettings):
     ollama_api_base: str = "http://localhost:11434"
 
     duckdb_path: str = "data/camel.duckdb"
-    raw_parquet_path: str = "data/raw/train.parquet"
+    raw_parquet_path: str = "data/bronze/train.parquet"
+    silver_parquet_path: str = "data/silver/train_sample.parquet"
+    sample_fraction: float = Field(
+        default=0.1, description="Fraction of dataset to sample for silver layer"
+    )
+    sample_seed: int = Field(default=42, description="Random seed for reproducible sampling")
     prompt_template_path: str = "prompts/system_prompt.j2"
     results_dir: str = "results"

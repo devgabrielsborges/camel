@@ -14,7 +14,8 @@ def settings() -> Settings:
         openai_api_key="test-key",
         mlflow_tracking_uri="http://localhost:5000",
         duckdb_path="data/camel.duckdb",
-        raw_parquet_path="data/raw/train.parquet",
+        raw_parquet_path="data/bronze/train.parquet",
+        silver_parquet_path="data/silver/train_sample.parquet",
         prompt_template_path="prompts/system_prompt.j2",
         results_dir="results",
     )

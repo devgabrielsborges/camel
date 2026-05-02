@@ -40,12 +40,14 @@ docker compose up -d
 camel prepare
 ```
 
-Downloads the dataset and runs dbt bronze + silver transformations.
+Downloads the dataset to `data/bronze/`, applies stratified sampling to produce `data/silver/`, and runs dbt transformations.
 
-After a pipeline run, build gold analytical models:
+Options:
 
 ```bash
-camel prepare --skip-download --gold
+camel prepare --skip-download          # reuse existing bronze parquet
+camel prepare --skip-sample            # reuse existing silver parquet
+camel prepare --skip-download --gold   # build gold models after a pipeline run
 ```
 
 ## Usage
@@ -124,9 +126,16 @@ to the OpenAI Agents SDK.
 
 Medallion architecture with dbt + DuckDB:
 
-- **Bronze**: Raw parquet ingestion (`stg_raw_dataset`)
-- **Silver**: Filtered to `data_category_QA ∈ {positivo, negativo}` (`int_filtered_dataset`)
-- **Gold**: Joined inference + evaluation results (`fct_inference_results`, `fct_evaluation_scores`)
+```
+data/
+├── bronze/   # Raw dataset from HuggingFace
+├── silver/   # Stratified sample (filtered + sampled)
+└── camel.duckdb
+```
+
+- **Bronze** (`data/bronze/`): Raw parquet ingestion (`stg_raw_dataset`)
+- **Silver** (`data/silver/`): Stratified sampling preserving class proportions (`data_category_QA ∈ {positivo, negativo}`), loaded into dbt as `int_filtered_dataset`
+- **Gold** (dbt + `results/`): Joined inference + evaluation results (`fct_inference_results`, `fct_evaluation_scores`)
 
 ## Testing
 
@@ -147,8 +156,20 @@ Checks: black, isort, autoflake, mypy (strict), vulture.
 ## Environment Variables
 
 All configuration via `.env`. See `.env.example` for the full list.
-Key variables: `OPENAI_API_KEY`, `OPENAI_MODEL`, `JUDGE_MODEL`,
-`LLM_PROVIDER`, `MLFLOW_TRACKING_URI`, `BATCH_SIZE`, `CONCURRENCY`.
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `OPENAI_API_KEY` | OpenAI API key | — |
+| `OPENAI_MODEL` | Model for inference | `gpt-4o-mini` |
+| `JUDGE_MODEL` | Model for LLM-as-judge scoring | `gpt-4o-mini` |
+| `LLM_PROVIDER` | `openai` or `litellm` | `openai` |
+| `MLFLOW_TRACKING_URI` | MLflow server URL | `http://localhost:5000` |
+| `RAW_PARQUET_PATH` | Bronze layer path | `data/bronze/train.parquet` |
+| `SILVER_PARQUET_PATH` | Silver layer path | `data/silver/train_sample.parquet` |
+| `SAMPLE_FRACTION` | Fraction of dataset to sample | `0.1` |
+| `SAMPLE_SEED` | Random seed for reproducibility | `42` |
+| `BATCH_SIZE` | Rows per batch | `50` |
+| `CONCURRENCY` | Max concurrent calls | `10` |
 
 ## Output CSV
 
