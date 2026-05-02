@@ -79,7 +79,8 @@ services:
           --backend-store-uri postgresql://${POSTGRES_USER:-mlflow}:${POSTGRES_PASSWORD:-mlflow}@postgres:5432/${POSTGRES_DB:-mlflow} \
           --serve-artifacts \
           --default-artifact-root s3://${MLFLOW_BUCKET:-mlflow-artifacts}/ \
-          --allowed-hosts "localhost:*,host.k3d.internal:*,0.0.0.0:*"
+          --allowed-hosts "*" \
+          --cors-allowed-origins "*"
     volumes:
       - mlflow-data:/mlflow
     environment:
