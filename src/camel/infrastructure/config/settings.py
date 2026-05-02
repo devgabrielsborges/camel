@@ -47,5 +47,10 @@ class Settings(BaseSettings):
         default=0.7, description="Temperature for generating diverse Pass@k responses"
     )
 
+    inference_cache_dir: str = Field(
+        default="data/cache/inferences",
+        description="Directory for caching inference results",
+    )
+
     prompt_template_path: str = "prompts/system_prompt.j2"
     results_dir: str = "results"
