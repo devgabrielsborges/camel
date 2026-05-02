@@ -42,9 +42,7 @@ class CachedAgentAdapter:
         return self._misses
 
     def _cache_key(self, record_id: str, prompt_hash: str) -> str:
-        return hashlib.sha256(
-            f"{record_id}:{self._model}:{prompt_hash}".encode()
-        ).hexdigest()[:16]
+        return hashlib.sha256(f"{record_id}:{self._model}:{prompt_hash}".encode()).hexdigest()[:16]
 
     def _prompt_hash(self, prompt: str) -> str:
         return hashlib.sha256(prompt.encode()).hexdigest()[:12]
