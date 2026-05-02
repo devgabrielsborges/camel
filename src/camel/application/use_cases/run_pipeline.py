@@ -99,6 +99,8 @@ class RunPipeline:
                 {"total_sessions": float(len(evaluation.sessions))},
             )
 
+            self._tracker.disable_autolog()
+
             logger.info("Pipeline step 4/6: Evaluation (reusing traces)")
             if on_step is not None:
                 on_step(4, "Scoring traces")
