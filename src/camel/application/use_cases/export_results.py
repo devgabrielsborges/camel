@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-import csv
+import json
 import logging
 from collections.abc import Callable
+from datetime import datetime, timezone
 from pathlib import Path
 
 from camel.domain.entities.evaluation import Evaluation
@@ -21,29 +22,11 @@ _SCORER_COLUMN_MAP: dict[str, str] = {
     "groundedness": "groundedness_score",
 }
 
-_CSV_COLUMNS: list[str] = [
-    "id",
-    "question",
-    "prediction",
-    "data_category_QA",
-    "language",
-    "model",
-    "correctness_score",
-    "guidelines_score",
-    "token_overlap_f1",
-    "class_exact_match",
-    "refusal_detection",
-    "groundedness_score",
-    "pass_at_k",
-    "pass_at_k_best_score",
-    "failure_mode",
-]
 
-
-def _score_value_str(score: Score) -> str:
+def _score_value(score: Score) -> float | bool | None:
     if score.value is None:
-        return "N/A"
-    return str(score.value)
+        return None
+    return score.value
 
 
 class ExportResults:
@@ -51,6 +34,7 @@ class ExportResults:
         self,
         evaluation: Evaluation,
         output_path: str,
+        run_id: str = "",
         on_progress: ProgressCallback | None = None,
     ) -> int:
         output = Path(output_path)
@@ -59,10 +43,9 @@ class ExportResults:
         total_sessions = len(evaluation.sessions)
         row_count = 0
         session_count = 0
-        with open(output, "w", newline="", encoding="utf-8") as f:
-            writer = csv.DictWriter(f, fieldnames=_CSV_COLUMNS)
-            writer.writeheader()
+        timestamp = datetime.now(tz=timezone.utc).isoformat()
 
+        with open(output, "a", encoding="utf-8") as f:
             for session in evaluation.sessions:
                 record = session.dataset_record
                 primary_trace = session.traces[0] if session.traces else None
@@ -76,31 +59,33 @@ class ExportResults:
 
                 for trace_obj in session.traces:
                     scores_by_name = {s.scorer_name: s for s in trace_obj.scores}
-                    row: dict[str, str] = {
+                    row: dict[str, object] = {
                         "id": record.id,
+                        "run_id": run_id,
+                        "timestamp": timestamp,
                         "question": record.question,
                         "prediction": trace_obj.output_text,
                         "data_category_QA": record.data_category_qa,
-                        "language": str(record.language),
+                        "language": record.language,
                         "model": trace_obj.model,
                     }
                     for scorer_name, col_name in _SCORER_COLUMN_MAP.items():
                         score = scores_by_name.get(scorer_name)
-                        row[col_name] = _score_value_str(score) if score else ""
+                        row[col_name] = _score_value(score) if score else None
 
                     if pk_score is not None:
-                        row["pass_at_k"] = _score_value_str(pk_score)
-                        row["pass_at_k_best_score"] = str(pk_score.metadata.get("best_score", ""))
+                        row["pass_at_k"] = _score_value(pk_score)
+                        row["pass_at_k_best_score"] = pk_score.metadata.get("best_score")
                     else:
-                        row["pass_at_k"] = ""
-                        row["pass_at_k_best_score"] = ""
+                        row["pass_at_k"] = None
+                        row["pass_at_k_best_score"] = None
 
                     fm_entry = scores_by_name.get("failure_mode")
                     row["failure_mode"] = (
-                        fm_entry.metadata.get("failure_mode", "") if fm_entry else ""
+                        fm_entry.metadata.get("failure_mode") if fm_entry else None
                     )
 
-                    writer.writerow(row)
+                    f.write(json.dumps(row, ensure_ascii=False) + "\n")
                     row_count += 1
 
                 session_count += 1

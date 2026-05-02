@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import csv
+import json
 import tempfile
 from pathlib import Path
 
@@ -55,13 +55,23 @@ def _make_evaluation_with_sessions(
     return evaluation
 
 
-def test_export_writes_csv_file(
+def _read_jsonl(path: str) -> list[dict[str, object]]:
+    rows: list[dict[str, object]] = []
+    with open(path, encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if line:
+                rows.append(json.loads(line))
+    return rows
+
+
+def test_export_writes_jsonl_file(
     sample_dataset_record: DatasetRecord,
 ) -> None:
     evaluation = _make_evaluation_with_sessions(sample_dataset_record)
 
     with tempfile.TemporaryDirectory() as tmpdir:
-        output_path = str(Path(tmpdir) / "predictions.csv")
+        output_path = str(Path(tmpdir) / "predictions.jsonl")
 
         use_case = ExportResults()
         row_count = use_case.execute(evaluation=evaluation, output_path=output_path)
@@ -70,59 +80,77 @@ def test_export_writes_csv_file(
         assert Path(output_path).exists()
 
 
-def test_export_csv_contains_expected_columns(
+def test_export_jsonl_contains_expected_fields(
     sample_dataset_record: DatasetRecord,
 ) -> None:
     evaluation = _make_evaluation_with_sessions(sample_dataset_record)
 
     with tempfile.TemporaryDirectory() as tmpdir:
-        output_path = str(Path(tmpdir) / "predictions.csv")
+        output_path = str(Path(tmpdir) / "predictions.jsonl")
 
         use_case = ExportResults()
         use_case.execute(evaluation=evaluation, output_path=output_path)
 
-        with open(output_path, encoding="utf-8") as f:
-            reader = csv.DictReader(f)
-            rows = list(reader)
+        rows = _read_jsonl(output_path)
 
-        assert len(rows) == 1
-        expected_columns = {
-            "id",
-            "question",
-            "prediction",
-            "data_category_QA",
-            "language",
-            "model",
-            "token_overlap_f1",
-            "class_exact_match",
-            "refusal_detection",
-            "correctness_score",
-            "guidelines_score",
-        }
-        assert expected_columns.issubset(set(rows[0].keys()))
+    assert len(rows) == 1
+    expected_fields = {
+        "id",
+        "run_id",
+        "timestamp",
+        "question",
+        "prediction",
+        "data_category_QA",
+        "language",
+        "model",
+        "token_overlap_f1",
+        "class_exact_match",
+        "refusal_detection",
+        "correctness_score",
+        "guidelines_score",
+    }
+    assert expected_fields.issubset(set(rows[0].keys()))
 
 
-def test_export_csv_values_are_correct(
+def test_export_jsonl_values_are_correct(
     sample_dataset_record: DatasetRecord,
 ) -> None:
     evaluation = _make_evaluation_with_sessions(sample_dataset_record)
 
     with tempfile.TemporaryDirectory() as tmpdir:
-        output_path = str(Path(tmpdir) / "predictions.csv")
+        output_path = str(Path(tmpdir) / "predictions.jsonl")
 
         use_case = ExportResults()
         use_case.execute(evaluation=evaluation, output_path=output_path)
 
-        with open(output_path, encoding="utf-8") as f:
-            reader = csv.DictReader(f)
-            row = next(reader)
+        rows = _read_jsonl(output_path)
+        row = rows[0]
 
-        assert row["id"] == sample_dataset_record.id
-        assert row["question"] == sample_dataset_record.question
-        assert row["prediction"] == "Returns are accepted within 30 days of purchase."
-        assert row["data_category_QA"] == "positivo"
-        assert row["model"] == "gpt-4o-mini"
-        assert float(row["token_overlap_f1"]) == pytest.approx(0.85)
+    assert row["id"] == sample_dataset_record.id
+    assert row["question"] == sample_dataset_record.question
+    assert row["prediction"] == "Returns are accepted within 30 days of purchase."
+    assert row["data_category_QA"] == "positivo"
+    assert row["model"] == "gpt-4o-mini"
+    assert row["token_overlap_f1"] == pytest.approx(0.85)
+
+
+def test_export_appends_to_existing_file(
+    sample_dataset_record: DatasetRecord,
+) -> None:
+    evaluation = _make_evaluation_with_sessions(sample_dataset_record)
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        output_path = str(Path(tmpdir) / "predictions.jsonl")
+
+        use_case = ExportResults()
+        use_case.execute(evaluation=evaluation, output_path=output_path, run_id="run-1")
+        use_case.execute(evaluation=evaluation, output_path=output_path, run_id="run-2")
+
+        rows = _read_jsonl(output_path)
+
+    assert len(rows) == 2
+    assert rows[0]["run_id"] == "run-1"
+    assert rows[1]["run_id"] == "run-2"
 
 
 def test_export_multiple_sessions(
@@ -148,20 +176,18 @@ def test_export_multiple_sessions(
         evaluation.add_session(session)
 
     with tempfile.TemporaryDirectory() as tmpdir:
-        output_path = str(Path(tmpdir) / "predictions.csv")
+        output_path = str(Path(tmpdir) / "predictions.jsonl")
 
         use_case = ExportResults()
         row_count = use_case.execute(evaluation=evaluation, output_path=output_path)
 
         assert row_count == 3
 
-        with open(output_path, encoding="utf-8") as f:
-            reader = csv.DictReader(f)
-            rows = list(reader)
+        rows = _read_jsonl(output_path)
 
-        assert len(rows) == 3
-        ids = {r["id"] for r in rows}
-        assert ids == {"session-0", "session-1", "session-2"}
+    assert len(rows) == 3
+    ids = {r["id"] for r in rows}
+    assert ids == {"session-0", "session-1", "session-2"}
 
 
 def test_export_creates_parent_directories(
@@ -170,7 +196,7 @@ def test_export_creates_parent_directories(
     evaluation = _make_evaluation_with_sessions(sample_dataset_record)
 
     with tempfile.TemporaryDirectory() as tmpdir:
-        output_path = str(Path(tmpdir) / "nested" / "dir" / "predictions.csv")
+        output_path = str(Path(tmpdir) / "nested" / "dir" / "predictions.jsonl")
 
         use_case = ExportResults()
         use_case.execute(evaluation=evaluation, output_path=output_path)
@@ -189,10 +215,9 @@ def test_export_returns_zero_for_no_sessions() -> None:
     )
 
     with tempfile.TemporaryDirectory() as tmpdir:
-        output_path = str(Path(tmpdir) / "predictions.csv")
+        output_path = str(Path(tmpdir) / "predictions.jsonl")
 
         use_case = ExportResults()
         row_count = use_case.execute(evaluation=evaluation, output_path=output_path)
 
         assert row_count == 0
-        assert Path(output_path).exists()

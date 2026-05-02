@@ -46,7 +46,7 @@ def export(
         None,
         "--output",
         "-o",
-        help="Output CSV path (overrides RESULTS_DIR env var)",
+        help="Output JSONL path (overrides RESULTS_DIR env var)",
     ),
     experiment: Optional[str] = typer.Option(
         None,
@@ -60,7 +60,7 @@ def export(
         help="Comma-separated data_category_QA filter values",
     ),
 ) -> None:
-    """Export inference results to CSV from a completed run."""
+    """Export inference results to JSONL from a completed run."""
     from camel.application.use_cases.export_results import ExportResults
     from camel.domain.entities.evaluation import Evaluation, EvaluationStatus
     from camel.domain.entities.session import Session
@@ -75,7 +75,7 @@ def export(
     settings = Settings()
 
     exp_name = experiment or settings.experiment_name
-    output_path = output or f"{settings.results_dir}/predictions.csv"
+    output_path = output or f"{settings.results_dir}/predictions.jsonl"
     cat_list = categories.split(",") if categories else DEFAULT_CATEGORIES
 
     tracker = MLflowTrackerAdapter(tracking_uri=settings.mlflow_tracking_uri)
@@ -140,7 +140,7 @@ def export(
             evaluation.add_session(session)
         progress.advance(steps_task)
 
-        progress.update(steps_task, description="[3/3] Exporting to CSV")
+        progress.update(steps_task, description="[3/3] Exporting to JSONL")
         export_task = progress.add_task("Exporting", total=len(evaluation.sessions))
 
         def _on_export_progress(current: int, _total: int) -> None:

@@ -117,6 +117,7 @@ class RunPipeline:
             exported_rows = self._export_results.execute(
                 evaluation=evaluation,
                 output_path=output_path,
+                run_id=run_id,
                 on_progress=on_export_progress,
             )
 

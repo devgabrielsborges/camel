@@ -7,7 +7,7 @@ stays under the 8 GB budget.
 
 from __future__ import annotations
 
-import csv
+import json
 import tempfile
 import tracemalloc
 from pathlib import Path
@@ -163,7 +163,7 @@ async def test_e2e_pipeline_smoke(
         )
 
         with tempfile.TemporaryDirectory() as tmpdir:
-            output_path = str(Path(tmpdir) / "predictions.csv")
+            output_path = str(Path(tmpdir) / "predictions.jsonl")
 
             result = await pipeline.execute(
                 evaluation=evaluation,
@@ -179,9 +179,11 @@ async def test_e2e_pipeline_smoke(
             assert result.run_id == "e2e-run-id"
 
             assert Path(output_path).exists()
+            rows: list[dict[str, object]] = []
             with open(output_path, encoding="utf-8") as f:
-                reader = csv.DictReader(f)
-                rows = list(reader)
+                for line in f:
+                    if line.strip():
+                        rows.append(json.loads(line))
 
             assert len(rows) == 2
             for row in rows:
@@ -189,12 +191,12 @@ async def test_e2e_pipeline_smoke(
                 assert row["question"]
                 assert row["prediction"]
                 assert row["model"] == "gpt-4o-mini"
-                assert row["token_overlap_f1"]
-                assert row["class_exact_match"]
-                assert row["refusal_detection"]
+                assert row["token_overlap_f1"] is not None
+                assert row["class_exact_match"] is not None
+                assert row["refusal_detection"] is not None
 
-            categories_in_csv = {r["data_category_QA"] for r in rows}
-            assert categories_in_csv == {"positivo", "negativo"}
+            categories_in_jsonl = {r["data_category_QA"] for r in rows}
+            assert categories_in_jsonl == {"positivo", "negativo"}
 
             for session in result.evaluation.sessions:
                 for trace in session.traces:
@@ -273,7 +275,7 @@ async def test_e2e_pipeline_halt_propagation(
         await pipeline.execute(
             evaluation=evaluation,
             categories=["positivo"],
-            output_path="/tmp/should-not-exist.csv",
+            output_path="/tmp/should-not-exist.jsonl",
         )
 
     assert evaluation.status == EvaluationStatus.FAILED
