@@ -22,6 +22,7 @@ data/
 .cursor
 .vscode/
 .idea/
+.gemini
 
 # OS
 .DS_Store
