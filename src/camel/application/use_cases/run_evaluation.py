@@ -3,6 +3,7 @@ from __future__ import annotations
 import inspect
 import logging
 from collections import defaultdict
+from collections.abc import Callable
 from typing import Any
 
 from mlflow.entities import Feedback
@@ -18,6 +19,8 @@ from camel.domain.value_objects.score import Score
 from camel.infrastructure.adapters.mlflow_tracker import MLflowTrackerAdapter
 
 logger = logging.getLogger(__name__)
+
+ProgressCallback = Callable[[int, int], None]
 
 
 _YES_NO_MAP: dict[str, float] = {"yes": 1.0, "no": 0.0}
@@ -52,6 +55,7 @@ class RunEvaluation:
         self,
         evaluation: Evaluation,
         run_id: str,
+        on_progress: ProgressCallback | None = None,
     ) -> tuple[list[AggregatedMetric], list[CategoryBreakdown]]:
         if evaluation.status != EvaluationStatus.EVALUATING:
             evaluation.transition_to(EvaluationStatus.EVALUATING)
@@ -69,6 +73,7 @@ class RunEvaluation:
         all_scores: list[Score] = []
         scores_by_category: dict[str, list[Score]] = defaultdict(list)
         scored_count = 0
+        total_sessions = len(evaluation.sessions)
 
         try:
             for session in evaluation.sessions:
@@ -115,6 +120,9 @@ class RunEvaluation:
                             )
 
                     scored_count += 1
+
+                if on_progress is not None:
+                    on_progress(scored_count, total_sessions)
 
             overall = aggregate_scores(all_scores)
             by_category = aggregate_by_category(scores_by_category)

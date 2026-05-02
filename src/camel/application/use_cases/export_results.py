@@ -2,12 +2,15 @@ from __future__ import annotations
 
 import csv
 import logging
+from collections.abc import Callable
 from pathlib import Path
 
 from camel.domain.entities.evaluation import Evaluation
 from camel.domain.value_objects.score import Score
 
 logger = logging.getLogger(__name__)
+
+ProgressCallback = Callable[[int, int], None]
 
 _SCORER_COLUMN_MAP: dict[str, str] = {
     "token_overlap_f1": "token_overlap_f1",
@@ -43,11 +46,14 @@ class ExportResults:
         self,
         evaluation: Evaluation,
         output_path: str,
+        on_progress: ProgressCallback | None = None,
     ) -> int:
         output = Path(output_path)
         output.parent.mkdir(parents=True, exist_ok=True)
 
+        total_sessions = len(evaluation.sessions)
         row_count = 0
+        session_count = 0
         with open(output, "w", newline="", encoding="utf-8") as f:
             writer = csv.DictWriter(f, fieldnames=_CSV_COLUMNS)
             writer.writeheader()
@@ -70,6 +76,10 @@ class ExportResults:
 
                     writer.writerow(row)
                     row_count += 1
+
+                session_count += 1
+                if on_progress is not None:
+                    on_progress(session_count, total_sessions)
 
         logger.info("Exported %d rows to %s", row_count, output_path)
         return row_count
