@@ -83,5 +83,27 @@ get_llm_judge_scorers  # noqa: B018
 source  # noqa: B018
 statement  # noqa: B018
 
+# Verdict
+verdict  # noqa: B018
+VerdictResult  # noqa: B018
+compute_verdict  # noqa: B018
+
+# Failure modes
+FailureMode  # noqa: B018
+classify_failure_mode  # noqa: B018
+
+# Groundedness scorer factory
+create_groundedness_scorer  # noqa: B018
+
+# MLflow groundedness scorer
+groundedness  # noqa: B018
+
+# Pass@k
+PassAtKResult  # noqa: B018
+pass_at_k  # noqa: B018
+
+# Settings new fields
+pass_at_k_temperature  # noqa: B018
+
 # Tool function params — required by agents SDK
 ctx  # noqa: B018

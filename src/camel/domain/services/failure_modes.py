@@ -32,7 +32,9 @@ def classify_failure_mode(
     overlap_score = scores.get("token_overlap_f1")
 
     is_refusal = bool(refusal_score and refusal_score.value is True)
-    overlap_value = float(overlap_score.value) if overlap_score and overlap_score.value is not None else 0.0
+    overlap_value = (
+        float(overlap_score.value) if overlap_score and overlap_score.value is not None else 0.0
+    )
 
     if is_refusal and category == "positivo":
         return FailureMode.FALSE_REFUSAL
