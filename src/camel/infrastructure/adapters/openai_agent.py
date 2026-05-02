@@ -59,10 +59,12 @@ def _needs_litellm(model: str) -> bool:
 
 
 class OpenAIAgentAdapter:
-    def __init__(self, model: str) -> None:
+    def __init__(self, model: str, api_base: str | None = None) -> None:
         self._model = model
         self._agent_model: str | LitellmModel = (
-            LitellmModel(model=model) if _needs_litellm(model) else model
+            LitellmModel(model=model, api_base=api_base)
+            if _needs_litellm(model)
+            else model
         )
 
     async def invoke(self, record: DatasetRecord, system_prompt: str) -> Trace:
