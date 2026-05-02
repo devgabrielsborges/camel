@@ -1,0 +1,88 @@
+schema_version: "1.0"
+
+preset:
+  id: "ai-researcher-engineer"
+  name: "AI Researcher & Engineer"
+  version: "1.0.0"
+  description: "Spec Kit preset for AI Research, Statistics, AI Engineering — grounded in clean code, system design, and data science best practices"
+  author: "Gabriel Borges"
+  repository: "https://github.com/gabrielsborgees/spec-kit-preset-ai-researcher-engineer"
+  license: "MIT"
+
+requires:
+  speckit_version: ">=0.1.0"
+
+provides:
+  templates:
+    # ── Document templates ────────────────────────────────────────────
+    - type: "template"
+      name: "spec-template"
+      file: "templates/spec-template.md"
+      description: "AI/ML feature specification with research backing, metrics, and engineering constraints"
+      replaces: "spec-template"
+
+    - type: "template"
+      name: "research-template"
+      file: "templates/research-template.md"
+      description: "Literature review and research synthesis for AI/ML investigations"
+
+    - type: "template"
+      name: "experiment-template"
+      file: "templates/experiment-template.md"
+      description: "ML experiment design, hypothesis tracking, and reproducibility checklist"
+
+    - type: "template"
+      name: "system-design-template"
+      file: "templates/system-design-template.md"
+      description: "ML system architecture covering training, serving, monitoring, and data pipelines"
+
+    - type: "template"
+      name: "code-review-template"
+      file: "templates/code-review-template.md"
+      description: "Code review checklist merging clean code principles with ML-specific concerns"
+
+    - type: "template"
+      name: "data-analysis-template"
+      file: "templates/data-analysis-template.md"
+      description: "Statistical analysis and data science investigation template"
+
+    - type: "template"
+      name: "plan-template"
+      file: "templates/plan-template.md"
+      description: "Project plan template for AI/ML initiatives with phased milestones"
+      replaces: "plan-template"
+
+    # ── Command overrides ─────────────────────────────────────────────
+    - type: "command"
+      name: "speckit.specify"
+      file: "commands/speckit.specify.md"
+      description: "Create an AI/ML feature spec with research context and engineering rigor"
+      replaces: "speckit.specify"
+
+    - type: "command"
+      name: "speckit.research"
+      file: "commands/speckit.research.md"
+      description: "Conduct a structured research synthesis on an AI/ML topic"
+
+    - type: "command"
+      name: "speckit.experiment"
+      file: "commands/speckit.experiment.md"
+      description: "Design a reproducible ML experiment with hypothesis, metrics, and baselines"
+
+    - type: "command"
+      name: "speckit.review"
+      file: "commands/speckit.review.md"
+      description: "Run a code review against clean code, system design, and ML best practices"
+
+    - type: "command"
+      name: "speckit.design"
+      file: "commands/speckit.design.md"
+      description: "Architect an ML system end-to-end: data, training, serving, and monitoring"
+
+tags:
+  - "ai-research"
+  - "machine-learning"
+  - "statistics"
+  - "clean-code"
+  - "system-design"
+  - "data-science"

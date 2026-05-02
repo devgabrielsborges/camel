@@ -1,0 +1,29 @@
+{
+  "schema_version": "1.0",
+  "extensions": {
+    "checkpoint": {
+      "version": "1.0.0",
+      "source": "local",
+      "manifest_hash": "sha256:f1f8587fcfee109d13e5fd2837df498439695218b32d00083f6e98095fca64c0",
+      "enabled": true,
+      "priority": 10,
+      "registered_commands": {
+        "cursor": [
+          "speckit.checkpoint.commit"
+        ]
+      },
+      "registered_skills": [],
+      "installed_at": "2026-05-01T15:25:47.477174+00:00"
+    },
+    "memory-loader": {
+      "version": "1.0.0",
+      "source": "local",
+      "manifest_hash": "sha256:d1caef45965accd4316d8aede0a4ac67f910017ea3c501814cfc7e2d8177ab0b",
+      "enabled": true,
+      "priority": 10,
+      "registered_commands": {},
+      "registered_skills": [],
+      "installed_at": "2026-05-01T15:43:55.416967+00:00"
+    }
+  }
+}
