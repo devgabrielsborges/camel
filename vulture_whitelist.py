@@ -79,5 +79,9 @@ refusal_detection  # noqa: B018
 get_deterministic_scorers  # noqa: B018
 get_llm_judge_scorers  # noqa: B018
 
+# GroundednessPort
+source  # noqa: B018
+statement  # noqa: B018
+
 # Tool function params — required by agents SDK
 ctx  # noqa: B018

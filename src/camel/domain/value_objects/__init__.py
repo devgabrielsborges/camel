@@ -4,6 +4,16 @@ from typing import Any
 
 from pydantic import BaseModel
 
+from camel.domain.value_objects.pass_at_k_result import PassAtKResult
+
+__all__ = [
+    "Chunk",
+    "ClassDef",
+    "PassAtKResult",
+    "TokenUsage",
+    "ToolCall",
+]
+
 
 class TokenUsage(BaseModel, frozen=True):
     input_tokens: int
