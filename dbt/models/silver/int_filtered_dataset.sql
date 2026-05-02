@@ -14,8 +14,7 @@ select
     language,
     data_category_QA,
     content_base_uuids
-from {{ ref('stg_raw_dataset') }}
-where data_category_QA in ('positivo', 'negativo')
-  and question is not null
+from read_parquet('{{ var("silver_parquet_path") }}')
+where question is not null
   and question != ''
   and content is not null

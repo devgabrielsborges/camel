@@ -6,7 +6,8 @@ model-paths: ["models"]
 seed-paths: ["seeds"]
 
 vars:
-  raw_parquet_path: "../data/raw/train.parquet"
+  raw_parquet_path: "../data/bronze/train.parquet"
+  silver_parquet_path: "../data/silver/train_sample.parquet"
   results_csv_path: "../results/predictions.csv"
 
 models:
