@@ -4,11 +4,11 @@ description: "Read all project memory files and output their contents for LLM co
 
 # Load Project Memory
 
-Read ALL `.md` files in `/home/gabrielborges/dev/camel/.specify/memory` at the project root and output their contents. This gives you project governance context (constitution, glossary, conventions, resource standards) for the command that follows.
+Read ALL `.md` files in `/home/bg/dev/camel/.specify/memory` at the project root and output their contents. This gives you project governance context (constitution, glossary, conventions, resource standards) for the command that follows.
 
 ## Steps
 
-1. **Gather**: Read every `.md` file from `/home/gabrielborges/dev/camel/.specify/memory`.
+1. **Gather**: Read every `.md` file from `/home/bg/dev/camel/.specify/memory`.
    - If the directory does not exist, skip it silently.
    - If a file cannot be read, skip it and continue.
 
