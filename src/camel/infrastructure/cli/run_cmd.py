@@ -6,12 +6,42 @@ import uuid
 from typing import Optional
 
 import typer
+from rich.progress import (
+    BarColumn,
+    MofNCompleteColumn,
+    Progress,
+    SpinnerColumn,
+    TaskProgressColumn,
+    TextColumn,
+    TimeElapsedColumn,
+    TimeRemainingColumn,
+)
 
 from camel.infrastructure.cli.app import app
 
 logger = logging.getLogger(__name__)
 
 DEFAULT_CATEGORIES = ["positivo", "negativo"]
+
+_STEP_LABELS: dict[int, str] = {
+    1: "Registering prompt",
+    2: "Registering dataset",
+    3: "Running inference",
+    4: "Scoring traces",
+    5: "Exporting results",
+}
+
+
+def _create_progress() -> Progress:
+    return Progress(
+        SpinnerColumn(),
+        TextColumn("[bold blue]{task.description}"),
+        BarColumn(),
+        TaskProgressColumn(),
+        MofNCompleteColumn(),
+        TimeElapsedColumn(),
+        TimeRemainingColumn(),
+    )
 
 
 @app.command(name="run")
@@ -94,6 +124,9 @@ def run_pipeline(
     renderer = PromptRenderer(template_path=settings.prompt_template_path)
     scorers = create_scorers(settings, no_llm_judge=no_llm_judge)
 
+    total_records = dataset_adapter.count(cat_list)
+    effective_total = min(total_records, limit) if limit else total_records
+
     evaluation = Evaluation(
         evaluation_id=str(uuid.uuid4()),
         experiment_name=exp_name,
@@ -136,21 +169,56 @@ def run_pipeline(
         export_results=export_results,
     )
 
-    try:
-        result = asyncio.run(
-            pipeline.execute(
-                evaluation=evaluation,
-                categories=cat_list,
-                output_path=output_path,
-                prompt_template=prompt_template,
-                limit=limit,
-            )
-        )
-    except RuntimeError as exc:
-        typer.echo(f"Pipeline failed: {exc}", err=True)
-        raise typer.Exit(code=1) from exc
+    with _create_progress() as progress:
+        steps_task = progress.add_task("Pipeline", total=5)
+        inference_task = progress.add_task("Inference", total=effective_total, visible=False)
+        eval_task = progress.add_task("Scoring", total=effective_total, visible=False)
+        export_task = progress.add_task("Exporting", total=effective_total, visible=False)
 
-    typer.echo(f"Pipeline complete: {result.exported_rows} rows exported to {output_path}")
+        def _on_step(step: int, _description: str) -> None:
+            label = _STEP_LABELS.get(step, _description)
+            progress.update(steps_task, description=f"[{step}/5] {label}")
+            if step == 3:
+                progress.update(inference_task, visible=True)
+            elif step == 4:
+                progress.update(inference_task, visible=False)
+                progress.update(eval_task, visible=True)
+            elif step == 5:
+                progress.update(eval_task, visible=False)
+                progress.update(export_task, visible=True)
+
+        def _on_inference_progress(current: int, _total: int) -> None:
+            progress.update(inference_task, completed=current)
+
+        def _on_eval_progress(current: int, _total: int) -> None:
+            progress.update(eval_task, completed=current)
+
+        def _on_export_progress(current: int, _total: int) -> None:
+            progress.update(export_task, completed=current)
+
+        try:
+            result = asyncio.run(
+                pipeline.execute(
+                    evaluation=evaluation,
+                    categories=cat_list,
+                    output_path=output_path,
+                    prompt_template=prompt_template,
+                    limit=limit,
+                    on_step=_on_step,
+                    on_inference_progress=_on_inference_progress,
+                    on_evaluation_progress=_on_eval_progress,
+                    on_export_progress=_on_export_progress,
+                    inference_total=effective_total,
+                )
+            )
+        except RuntimeError as exc:
+            progress.stop()
+            typer.echo(f"Pipeline failed: {exc}", err=True)
+            raise typer.Exit(code=1) from exc
+
+        progress.update(steps_task, completed=5, description="Pipeline complete")
+
+    typer.echo(f"\nPipeline complete: {result.exported_rows} rows exported to {output_path}")
     typer.echo(f"MLflow run ID: {result.run_id}")
     typer.echo(f"Sessions: {len(result.evaluation.sessions)}")
     typer.echo(f"Status: {result.evaluation.status.value}")

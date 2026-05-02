@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 import gc
 import logging
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 
 from camel.domain.entities.evaluation import Evaluation, EvaluationStatus
 from camel.domain.entities.session import Session
@@ -15,6 +15,8 @@ from camel.infrastructure.adapters.mlflow_tracker import MLflowTrackerAdapter
 from camel.infrastructure.adapters.openai_agent import OpenAIAgentAdapter
 
 logger = logging.getLogger(__name__)
+
+ProgressCallback = Callable[[int, int], None]
 
 
 def _chunked(iterator: Iterator[DatasetRecord], size: int) -> Iterator[list[DatasetRecord]]:
@@ -51,8 +53,12 @@ class RunInference:
         categories: list[str],
         limit: int | None = None,
         prompt_version_uri: str = "",
+        on_progress: ProgressCallback | None = None,
+        total: int | None = None,
     ) -> Evaluation:
         evaluation.transition_to(EvaluationStatus.INFERRING)
+
+        effective_total = total or 0
 
         try:
             rows = self._dataset.load_filtered(categories)
@@ -100,6 +106,9 @@ class RunInference:
 
                 await self._agent.flush()
                 gc.collect()
+
+                if on_progress is not None:
+                    on_progress(processed, effective_total)
 
                 logger.info(
                     "Processed %d/%s records",
