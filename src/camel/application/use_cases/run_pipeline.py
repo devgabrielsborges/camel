@@ -10,6 +10,7 @@ from camel.application.use_cases.run_evaluation import RunEvaluation
 from camel.application.use_cases.run_inference import RunInference
 from camel.domain.entities.evaluation import Evaluation, EvaluationStatus
 from camel.domain.services.aggregation import AggregatedMetric, CategoryBreakdown
+from camel.domain.services.verdict import VerdictResult, compute_verdict
 from camel.domain.value_objects.prompt_template import PromptTemplate
 from camel.infrastructure.adapters.mlflow_tracker import MLflowTrackerAdapter
 
@@ -26,6 +27,7 @@ class PipelineResult:
     overall_metrics: list[AggregatedMetric]
     category_breakdowns: list[CategoryBreakdown]
     exported_rows: int
+    verdict: VerdictResult | None = None
 
 
 class RunPipeline:
@@ -59,7 +61,7 @@ class RunPipeline:
     ) -> PipelineResult:
         self._tracker.set_experiment(evaluation.experiment_name)
 
-        logger.info("Pipeline step 1/5: Register prompt")
+        logger.info("Pipeline step 1/6: Register prompt")
         if on_step is not None:
             on_step(1, "Registering prompt")
         if prompt_template is not None:
@@ -67,7 +69,7 @@ class RunPipeline:
             evaluation.prompt_version = prompt_version_uri
             logger.info("Registered prompt: %s", prompt_version_uri)
 
-        logger.info("Pipeline step 2/5: Register evaluation dataset")
+        logger.info("Pipeline step 2/6: Register evaluation dataset")
         if on_step is not None:
             on_step(2, "Registering dataset")
         dataset_count = self._register_dataset.execute(
@@ -77,7 +79,7 @@ class RunPipeline:
         )
         logger.info("Registered %d records in evaluation dataset", dataset_count)
 
-        logger.info("Pipeline step 3/5: Inference (with MLflow autolog tracing)")
+        logger.info("Pipeline step 3/6: Inference (with MLflow autolog tracing)")
         if on_step is not None:
             on_step(3, "Running inference")
         run_id = self._tracker.start_run(evaluation)
@@ -97,7 +99,7 @@ class RunPipeline:
                 {"total_sessions": float(len(evaluation.sessions))},
             )
 
-            logger.info("Pipeline step 4/5: Evaluation (reusing traces)")
+            logger.info("Pipeline step 4/6: Evaluation (reusing traces)")
             if on_step is not None:
                 on_step(4, "Scoring traces")
             evaluation.transition_to(EvaluationStatus.EVALUATING)
@@ -107,7 +109,7 @@ class RunPipeline:
                 on_progress=on_evaluation_progress,
             )
 
-            logger.info("Pipeline step 5/5: Export (gold)")
+            logger.info("Pipeline step 5/6: Export (gold)")
             if on_step is not None:
                 on_step(5, "Exporting results")
             exported_rows = self._export_results.execute(
@@ -115,6 +117,28 @@ class RunPipeline:
                 output_path=output_path,
                 on_progress=on_export_progress,
             )
+
+            logger.info("Pipeline step 6/6: Computing verdict")
+            if on_step is not None:
+                on_step(6, "Computing verdict")
+            verdict_result = compute_verdict(by_category)
+
+            verdict_metrics: dict[str, float] = {
+                "verdict_positivo_overlap_mean": verdict_result.positivo_overlap_mean,
+                "verdict_negativo_overlap_mean": verdict_result.negativo_overlap_mean,
+                "verdict_positivo_refusal_rate": verdict_result.positivo_refusal_rate,
+                "verdict_negativo_refusal_rate": verdict_result.negativo_refusal_rate,
+                "verdict_discrimination_delta": verdict_result.discrimination_delta,
+            }
+            self._tracker.log_metrics(run_id, verdict_metrics)
+            self._tracker.set_run_tags(
+                run_id,
+                {
+                    "verdict": str(verdict_result.verdict),
+                    "verdict.reasons": "; ".join(verdict_result.reasons),
+                },
+            )
+            logger.info("Verdict: %s", verdict_result.verdict)
 
         except Exception:
             self._tracker.end_run(run_id)
@@ -136,4 +160,5 @@ class RunPipeline:
             overall_metrics=overall,
             category_breakdowns=by_category,
             exported_rows=exported_rows,
+            verdict=verdict_result,
         )
