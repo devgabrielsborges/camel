@@ -35,9 +35,9 @@
 
 ## Phase 5: User Story 3 — Report Generation (P3)
 
-- [ ] T020 [US3] Add capability verdict logic (capable/not_capable/inconclusive) in `src/camel/domain/services/verdict.py`
-- [ ] T021 [US3] Integrate verdict into pipeline output in `src/camel/application/use_cases/run_pipeline.py`
-- [ ] T022 [US3] Log verdict + per-category breakdown to MLflow as final step in `src/camel/infrastructure/adapters/mlflow_tracker.py`
+- [x] T020 [US3] Add capability verdict logic (capable/not_capable/inconclusive) in `src/camel/domain/services/verdict.py`
+- [x] T021 [US3] Integrate verdict into pipeline output in `src/camel/application/use_cases/run_pipeline.py`
+- [x] T022 [US3] Log verdict + per-category breakdown to MLflow as final step in `src/camel/application/use_cases/run_pipeline.py`
 
 ## Phase 6: Polish
 
