@@ -18,6 +18,7 @@ _SCORER_COLUMN_MAP: dict[str, str] = {
     "refusal_detection": "refusal_detection",
     "correctness": "correctness_score",
     "guidelines": "guidelines_score",
+    "groundedness": "groundedness_score",
 }
 
 _CSV_COLUMNS: list[str] = [
@@ -32,6 +33,9 @@ _CSV_COLUMNS: list[str] = [
     "token_overlap_f1",
     "class_exact_match",
     "refusal_detection",
+    "groundedness_score",
+    "pass_at_k",
+    "pass_at_k_best_score",
 ]
 
 
@@ -60,6 +64,15 @@ class ExportResults:
 
             for session in evaluation.sessions:
                 record = session.dataset_record
+                primary_trace = session.traces[0] if session.traces else None
+                if primary_trace is None:
+                    continue
+
+                pk_score = next(
+                    (s for s in primary_trace.scores if s.scorer_name == "pass_at_k"),
+                    None,
+                )
+
                 for trace_obj in session.traces:
                     scores_by_name = {s.scorer_name: s for s in trace_obj.scores}
                     row: dict[str, str] = {
@@ -73,6 +86,13 @@ class ExportResults:
                     for scorer_name, col_name in _SCORER_COLUMN_MAP.items():
                         score = scores_by_name.get(scorer_name)
                         row[col_name] = _score_value_str(score) if score else ""
+
+                    if pk_score is not None:
+                        row["pass_at_k"] = _score_value_str(pk_score)
+                        row["pass_at_k_best_score"] = str(pk_score.metadata.get("best_score", ""))
+                    else:
+                        row["pass_at_k"] = ""
+                        row["pass_at_k_best_score"] = ""
 
                     writer.writerow(row)
                     row_count += 1
