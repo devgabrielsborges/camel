@@ -1,0 +1,23 @@
+{
+  "schema_version": "1.0",
+  "presets": {
+    "ai-researcher-engineer": {
+      "version": "1.0.0",
+      "source": "local",
+      "manifest_hash": "sha256:95a2f1bfe0d916ac1dfebc54cc8ba1d2dfcb851648954583f4434b282a12b829",
+      "enabled": true,
+      "priority": 10,
+      "registered_commands": {
+        "cursor": [
+          "speckit.specify",
+          "speckit.research",
+          "speckit.experiment",
+          "speckit.review",
+          "speckit.design"
+        ]
+      },
+      "registered_skills": [],
+      "installed_at": "2026-05-01T15:28:41.973536+00:00"
+    }
+  }
+}
