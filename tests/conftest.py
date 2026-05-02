@@ -16,6 +16,8 @@ def settings() -> Settings:
         duckdb_path="data/camel.duckdb",
         raw_parquet_path="data/bronze/train.parquet",
         silver_parquet_path="data/silver/train_sample.parquet",
+        pass_at_k=3,
+        pass_at_k_temperature=0.7,
         prompt_template_path="prompts/system_prompt.j2",
         results_dir="results",
     )

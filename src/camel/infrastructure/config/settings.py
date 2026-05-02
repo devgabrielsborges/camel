@@ -42,5 +42,10 @@ class Settings(BaseSettings):
         default=0.1, description="Fraction of dataset to sample for silver layer"
     )
     sample_seed: int = Field(default=42, description="Random seed for reproducible sampling")
+    pass_at_k: int = Field(default=3, description="Number of responses per question for Pass@k")
+    pass_at_k_temperature: float = Field(
+        default=0.7, description="Temperature for generating diverse Pass@k responses"
+    )
+
     prompt_template_path: str = "prompts/system_prompt.j2"
     results_dir: str = "results"
