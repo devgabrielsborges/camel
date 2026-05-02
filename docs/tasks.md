@@ -41,9 +41,9 @@
 
 ## Phase 6: Polish
 
-- [ ] T023 Update README with new scorers (groundedness, pass@3) and verdict in `README.md`
-- [ ] T024 Update `docs/notes.md` with final methodology description
-- [ ] T025 Verify full pipeline run end-to-end with `camel prepare && camel run --limit 10`
+- [x] T023 Update README with new scorers (groundedness, pass@3) and verdict in `README.md`
+- [x] T024 Update `docs/notes.md` with final methodology description
+- [x] T025 Verify full pipeline run end-to-end with `camel prepare && camel run --limit 10`
 
 ## Dependencies
 
