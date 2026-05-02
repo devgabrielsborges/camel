@@ -28,10 +28,10 @@
 
 ## Phase 4: User Story 2 — Explainability via Failure Mode Categorization (P2)
 
-- [ ] T016 [US2] Implement failure mode categorization service in `src/camel/domain/services/failure_modes.py`
-- [ ] T017 [US2] Integrate failure mode classification into evaluation output in `src/camel/application/use_cases/run_evaluation.py`
-- [ ] T018 [US2] Add `failure_mode` column to CSV export in `src/camel/application/use_cases/export_results.py`
-- [ ] T019 [US2] Add failure mode distribution to MLflow metrics logging in `src/camel/infrastructure/adapters/mlflow_tracker.py`
+- [x] T016 [US2] Implement failure mode categorization service in `src/camel/domain/services/failure_modes.py`
+- [x] T017 [US2] Integrate failure mode classification into evaluation output in `src/camel/application/use_cases/run_evaluation.py`
+- [x] T018 [US2] Add `failure_mode` column to CSV export in `src/camel/application/use_cases/export_results.py`
+- [x] T019 [US2] Add failure mode distribution to MLflow metrics logging in `src/camel/application/use_cases/run_evaluation.py`
 
 ## Phase 5: User Story 3 — Report Generation (P3)
 
