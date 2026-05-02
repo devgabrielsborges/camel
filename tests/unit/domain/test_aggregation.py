@@ -46,6 +46,17 @@ class TestAggregateScores:
         result = aggregate_scores([])
         assert result == []
 
+    def test_none_values_excluded(self) -> None:
+        scores = [
+            Score(scorer_name="f1", value=0.8),
+            Score(scorer_name="f1", value=None),
+            Score(scorer_name="f1", value=0.6),
+        ]
+        result = aggregate_scores(scores)
+        assert len(result) == 1
+        assert result[0].count == 2
+        assert result[0].mean == 0.7
+
     def test_std_zero_for_identical(self) -> None:
         scores = [
             Score(scorer_name="f1", value=0.5),

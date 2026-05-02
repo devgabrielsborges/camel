@@ -21,7 +21,9 @@ class CategoryBreakdown:
     metrics: list[AggregatedMetric] = field(default_factory=list)
 
 
-def _to_float(value: float | bool) -> float:
+def _to_float(value: float | bool | None) -> float | None:
+    if value is None:
+        return None
     if isinstance(value, bool):
         return 1.0 if value else 0.0
     return float(value)
@@ -44,7 +46,9 @@ def _std(values: list[float]) -> float:
 def aggregate_scores(scores: list[Score]) -> list[AggregatedMetric]:
     by_scorer: dict[str, list[float]] = defaultdict(list)
     for s in scores:
-        by_scorer[s.scorer_name].append(_to_float(s.value))
+        converted = _to_float(s.value)
+        if converted is not None:
+            by_scorer[s.scorer_name].append(converted)
 
     return [
         AggregatedMetric(

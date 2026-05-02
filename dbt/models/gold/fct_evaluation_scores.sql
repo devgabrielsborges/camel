@@ -1,17 +1,22 @@
-with predictions as (
-    select
-        id as session_id,
-        data_category_QA,
-        language,
-        correctness_score,
-        guidelines_score,
-        token_overlap_f1,
-        class_exact_match,
-        refusal_detection
+with raw_predictions as (
+    select *
     from read_csv(
         '{{ var("results_csv_path", "../results/predictions.csv") }}',
         auto_detect=true
     )
+),
+
+predictions as (
+    select
+        id as session_id,
+        data_category_QA,
+        language,
+        cast(correctness_score as varchar) as correctness_score,
+        cast(guidelines_score as varchar) as guidelines_score,
+        cast(token_overlap_f1 as varchar) as token_overlap_f1,
+        cast(class_exact_match as varchar) as class_exact_match,
+        cast(refusal_detection as varchar) as refusal_detection
+    from raw_predictions
 ),
 
 unpivoted as (

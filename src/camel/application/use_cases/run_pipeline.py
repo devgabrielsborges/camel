@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass
 
 from camel.application.use_cases.export_results import ExportResults
@@ -13,6 +14,9 @@ from camel.domain.value_objects.prompt_template import PromptTemplate
 from camel.infrastructure.adapters.mlflow_tracker import MLflowTrackerAdapter
 
 logger = logging.getLogger(__name__)
+
+ProgressCallback = Callable[[int, int], None]
+StepCallback = Callable[[int, str], None]
 
 
 @dataclass(frozen=True)
@@ -47,16 +51,25 @@ class RunPipeline:
         prompt_template: PromptTemplate | None = None,
         limit: int | None = None,
         prompt_version_uri: str = "",
+        on_step: StepCallback | None = None,
+        on_inference_progress: ProgressCallback | None = None,
+        on_evaluation_progress: ProgressCallback | None = None,
+        on_export_progress: ProgressCallback | None = None,
+        inference_total: int | None = None,
     ) -> PipelineResult:
         self._tracker.set_experiment(evaluation.experiment_name)
 
         logger.info("Pipeline step 1/5: Register prompt")
+        if on_step is not None:
+            on_step(1, "Registering prompt")
         if prompt_template is not None:
             prompt_version_uri = self._tracker.register_prompt(prompt_template)
             evaluation.prompt_version = prompt_version_uri
             logger.info("Registered prompt: %s", prompt_version_uri)
 
         logger.info("Pipeline step 2/5: Register evaluation dataset")
+        if on_step is not None:
+            on_step(2, "Registering dataset")
         dataset_count = self._register_dataset.execute(
             dataset_name=evaluation.dataset_name,
             categories=categories,
@@ -65,6 +78,8 @@ class RunPipeline:
         logger.info("Registered %d records in evaluation dataset", dataset_count)
 
         logger.info("Pipeline step 3/5: Inference (with MLflow autolog tracing)")
+        if on_step is not None:
+            on_step(3, "Running inference")
         run_id = self._tracker.start_run(evaluation)
         self._tracker.enable_autolog()
         try:
@@ -73,6 +88,8 @@ class RunPipeline:
                 categories=categories,
                 limit=limit,
                 prompt_version_uri=prompt_version_uri,
+                on_progress=on_inference_progress,
+                total=inference_total,
             )
 
             self._tracker.log_metrics(
@@ -81,16 +98,22 @@ class RunPipeline:
             )
 
             logger.info("Pipeline step 4/5: Evaluation (reusing traces)")
+            if on_step is not None:
+                on_step(4, "Scoring traces")
             evaluation.transition_to(EvaluationStatus.EVALUATING)
             overall, by_category = self._run_evaluation.execute(
                 evaluation=evaluation,
                 run_id=run_id,
+                on_progress=on_evaluation_progress,
             )
 
             logger.info("Pipeline step 5/5: Export (gold)")
+            if on_step is not None:
+                on_step(5, "Exporting results")
             exported_rows = self._export_results.execute(
                 evaluation=evaluation,
                 output_path=output_path,
+                on_progress=on_export_progress,
             )
 
         except Exception:

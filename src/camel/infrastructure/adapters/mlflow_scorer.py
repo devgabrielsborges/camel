@@ -34,10 +34,31 @@ def class_exact_match(
     outputs: dict[str, Any] | None = None,
     expectations: dict[str, Any] | None = None,
 ) -> Feedback:
-    expected_class = (expectations or {}).get("chosen_class_id", "")
+    exp = expectations or {}
+    expected_class = exp.get("chosen_class_id", "")
     if not expected_class:
-        return Feedback(name="class_exact_match", value=False, rationale="No expected class")
-    result = _class_exact_match((outputs or {}).get("response", ""), expected_class)
+        return Feedback(
+            name="class_exact_match",
+            error="N/A: no expected class provided",
+        )
+
+    classes: list[dict[str, str]] = exp.get("classes", [])
+    class_name = next(
+        (c.get("class", "") for c in classes if c.get("id") == expected_class),
+        "",
+    )
+
+    if not class_name:
+        return Feedback(
+            name="class_exact_match",
+            error=f"N/A: class {expected_class} not in classes list",
+        )
+
+    result = _class_exact_match(
+        (outputs or {}).get("response", ""),
+        expected_class,
+        class_name=class_name,
+    )
     return Feedback(name="class_exact_match", value=bool(result.value))
 
 
