@@ -11,7 +11,7 @@ deterministic metrics and LLM-as-judge, and tracks everything in MLflow.
 src/camel/
 ├── domain/          # Entities, value objects, domain services
 ├── application/     # Use cases, ports, DTOs
-└── infrastructure/  # Adapters (OpenAI, MLflow, DuckDB), CLI, config
+└── infrastructure/  # Adapters (OpenAI, MLflow, DuckDB), CLI, config, dashboard
 ```
 
 Clean Architecture with strict layer boundaries.
@@ -78,6 +78,7 @@ camel infer --help
 camel evaluate --help
 camel export --help
 camel prepare --help
+camel dashboard --help
 ```
 
 ### Options
@@ -147,6 +148,42 @@ Criteria:
 2. **Negativo**: refusal rate >= threshold OR low overlap (model avoids hallucination)
 3. **Discrimination**: significant delta between positivo/negativo overlap (model differentiates categories)
 
+## Dashboard
+
+Interactive Streamlit dashboard for exploring evaluation results, comparing
+models, and inspecting individual sessions.
+
+### Launch
+
+```bash
+camel dashboard
+```
+
+Options:
+
+```bash
+camel dashboard --db-path data/gold/camel.duckdb  # custom DB path
+camel dashboard --port 8502                        # custom port
+camel dashboard --no-browser                       # headless mode
+```
+
+### Tabs
+
+| Tab | Description |
+|-----|-------------|
+| **Overview** | KPI cards (mean ± std) and radar chart for all metrics |
+| **Comparison** | Descriptive statistics table; pairwise model comparison with Welch's t-test, delta, and significance highlighting |
+| **Distributions** | Side-by-side box plots per metric, colored by model |
+| **Failure Modes** | Stacked bar charts (by model & category) and Sankey diagram (category → refusal → failure mode) |
+| **Deep Dive** | Cost-performance scatter, performance-vs-complexity line charts, and session inspector with full I/O text |
+
+### Features
+
+- **Multi-model comparison**: select 2+ models to see overlaid radar polygons, side-by-side box plots, and statistical significance (p < 0.05) highlighted in green
+- **Interactive filtering**: sidebar filters for model, category, language, failure mode, and score range sliders
+- **Statistics**: mean, std, variance, CV, quartiles (Q1/Q2/Q3), IQR, min/max, z-scores, Welch's t-test p-values
+- **Session inspection**: select any session to view the full input/output text
+
 ## Data Pipeline
 
 Medallion architecture with dbt + DuckDB:
@@ -197,6 +234,7 @@ All configuration via `.env`. See `.env.example` for the full list.
 | `PASS_AT_K_TEMPERATURE` | Temperature for diverse Pass@k responses | `0.7` |
 | `BATCH_SIZE` | Rows per batch | `50` |
 | `CONCURRENCY` | Max concurrent calls | `10` |
+| `DUCKDB_PATH` | Path to DuckDB database (used by dashboard) | `data/gold/camel.duckdb` |
 
 ## Output JSONL
 
