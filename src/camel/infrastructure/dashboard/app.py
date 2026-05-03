@@ -12,6 +12,7 @@ from camel.infrastructure.dashboard.charts import (
     failure_mode_bars,
     performance_vs_complexity,
     radar_chart,
+    sankey_diagram,
 )
 from camel.infrastructure.dashboard.data_loader import METRIC_COLS, load_merged_data
 from camel.infrastructure.dashboard.filters import (
@@ -157,6 +158,31 @@ def _render_failure_modes(tab: st.delta_generator.DeltaGenerator, df: pd.DataFra
             st.subheader("By category")
             fig = failure_mode_bars(df, group_col="data_category_QA")
             st.plotly_chart(fig, use_container_width=True)
+
+        _render_sankey_section(df)
+
+
+def _render_sankey_section(df: pd.DataFrame) -> None:
+    st.subheader("Trajectory Flow")
+
+    required_cols = {"data_category_QA", "refusal_detection", "failure_mode"}
+    if not required_cols.issubset(df.columns):
+        st.info("Sankey diagram requires category, refusal, and failure mode columns.")
+        return
+
+    models = sorted(df["run_id"].unique())
+    if len(models) <= 1:
+        fig = sankey_diagram(df)
+        st.plotly_chart(fig, use_container_width=True)
+    else:
+        selected_model = st.selectbox(
+            "Select model for trajectory view",
+            models,
+            key="sankey_model",
+        )
+        model_df = df[df["run_id"] == selected_model]
+        fig = sankey_diagram(model_df)
+        st.plotly_chart(fig, use_container_width=True)
 
 
 def _render_deep_dive(tab: st.delta_generator.DeltaGenerator, df: pd.DataFrame) -> None:

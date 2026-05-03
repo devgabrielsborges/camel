@@ -124,6 +124,51 @@ def cost_performance_scatter(
     return _apply_style(fig)
 
 
+def sankey_diagram(df: pd.DataFrame) -> go.Figure:
+    required = {"data_category_QA", "refusal_detection", "failure_mode"}
+    if not required.issubset(df.columns):
+        return _apply_style(go.Figure())
+
+    tmp = df.copy()
+    tmp["refusal_label"] = tmp["refusal_detection"].map({True: "refused", False: "not_refused"})
+    tmp["failure_mode"] = tmp["failure_mode"].fillna("none")
+
+    categories = sorted(tmp["data_category_QA"].unique())
+    refusal_labels = sorted(tmp["refusal_label"].unique())
+    failure_modes = sorted(tmp["failure_mode"].unique())
+
+    all_labels = categories + refusal_labels + failure_modes
+    label_idx = {label: i for i, label in enumerate(all_labels)}
+
+    sources: list[int] = []
+    targets: list[int] = []
+    values: list[int] = []
+
+    cat_ref = tmp.groupby(["data_category_QA", "refusal_label"]).size().reset_index(name="count")
+    for _, row in cat_ref.iterrows():
+        sources.append(label_idx[row["data_category_QA"]])
+        targets.append(label_idx[row["refusal_label"]])
+        values.append(int(row["count"]))
+
+    ref_fail = tmp.groupby(["refusal_label", "failure_mode"]).size().reset_index(name="count")
+    for _, row in ref_fail.iterrows():
+        sources.append(label_idx[row["refusal_label"]])
+        targets.append(label_idx[row["failure_mode"]])
+        values.append(int(row["count"]))
+
+    fig = go.Figure(
+        go.Sankey(
+            node={
+                "label": all_labels,
+                "color": [COLOR_PALETTE[i % len(COLOR_PALETTE)] for i in range(len(all_labels))],
+            },
+            link={"source": sources, "target": targets, "value": values},
+        )
+    )
+    fig.update_layout(title="Trajectory Flow: Category \u2192 Refusal \u2192 Failure Mode")
+    return _apply_style(fig)
+
+
 def performance_vs_complexity(
     df: pd.DataFrame,
     metric_cols: list[str],

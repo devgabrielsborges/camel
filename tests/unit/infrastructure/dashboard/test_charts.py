@@ -9,6 +9,7 @@ from camel.infrastructure.dashboard.charts import (
     failure_mode_bars,
     performance_vs_complexity,
     radar_chart,
+    sankey_diagram,
 )
 
 _METRIC_COLS = ["correctness", "groundedness", "token_overlap_f1"]
@@ -168,5 +169,58 @@ class TestCostPerformanceScatter:
     def test_missing_x_col_returns_empty(self) -> None:
         df = _make_scores_df()
         fig = cost_performance_scatter(df, x_col="output_len")
+        assert isinstance(fig, go.Figure)
+        assert len(fig.data) == 0
+
+
+def _make_sankey_df(n_rows: int = 20) -> pd.DataFrame:
+    categories = ["positivo", "negativo"] * (n_rows // 2)
+    refusals = [True, False, False, True] * (n_rows // 4)
+    failures = ["none", "incorrect", "none", "false_refusal"] * (n_rows // 4)
+    return pd.DataFrame(
+        {
+            "run_id": ["model_a"] * n_rows,
+            "data_category_QA": categories[:n_rows],
+            "refusal_detection": refusals[:n_rows],
+            "failure_mode": failures[:n_rows],
+        }
+    )
+
+
+class TestSankeyDiagram:
+    def test_returns_figure(self) -> None:
+        df = _make_sankey_df()
+        fig = sankey_diagram(df)
+        assert isinstance(fig, go.Figure)
+
+    def test_has_sankey_trace(self) -> None:
+        df = _make_sankey_df()
+        fig = sankey_diagram(df)
+        assert len(fig.data) == 1
+        assert isinstance(fig.data[0], go.Sankey)
+
+    def test_node_labels_contain_categories(self) -> None:
+        df = _make_sankey_df()
+        fig = sankey_diagram(df)
+        labels = list(fig.data[0].node.label)
+        assert "positivo" in labels
+        assert "negativo" in labels
+
+    def test_node_labels_contain_failure_modes(self) -> None:
+        df = _make_sankey_df()
+        fig = sankey_diagram(df)
+        labels = list(fig.data[0].node.label)
+        assert "none" in labels
+        assert "incorrect" in labels
+
+    def test_links_sum_to_total_rows(self) -> None:
+        df = _make_sankey_df(n_rows=20)
+        fig = sankey_diagram(df)
+        total_link_value = sum(fig.data[0].link.value)
+        assert total_link_value == 2 * len(df)
+
+    def test_missing_columns_returns_empty(self) -> None:
+        df = pd.DataFrame({"run_id": ["a"], "correctness": [1.0]})
+        fig = sankey_diagram(df)
         assert isinstance(fig, go.Figure)
         assert len(fig.data) == 0
