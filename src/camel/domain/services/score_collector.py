@@ -12,6 +12,12 @@ _STATISTICAL_METRICS = frozenset(
         "class_exact_match",
         "groundedness",
         "pass_at_k",
+        "self_consistency",
+        "hedging_detection",
+        "question_response_overlap",
+        "response_length_ratio",
+        "rouge_l",
+        "chunk_attribution",
     }
 )
 

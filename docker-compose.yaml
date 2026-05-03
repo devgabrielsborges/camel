@@ -99,25 +99,6 @@ services:
     networks:
       - eval-network
 
-  eval:
-    build: .
-    env_file: .env
-    depends_on:
-      mlflow:
-        condition: service_healthy
-    environment:
-      MLFLOW_TRACKING_URI: http://mlflow:5000
-      MLFLOW_S3_ENDPOINT_URL: http://minio:9000
-      OPENAI_API_KEY: ${OPENAI_API_KEY}
-      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-minioadmin}
-      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-minioadmin}
-      AWS_DEFAULT_REGION: ${AWS_REGION:-us-east-1}
-    volumes:
-      - ./data:/app/data:ro
-      - ./results:/app/results
-    networks:
-      - eval-network
-
 volumes:
   mlflow-data:
   postgres-data:

@@ -67,6 +67,10 @@ class LiteLLMAgentAdapter:
                 tools=[tool_spec],
                 tool_choice="auto",
                 api_base=self._api_base,
+                metadata={
+                    "record_id": record.id,
+                    "pipeline_stage": "inference",
+                },
             )
 
             choice = response.choices[0]

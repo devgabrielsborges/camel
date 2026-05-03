@@ -20,6 +20,11 @@ _SCORER_COLUMN_MAP: dict[str, str] = {
     "correctness": "correctness_score",
     "guidelines": "guidelines_score",
     "groundedness": "groundedness_score",
+    "hedging_detection": "hedging_detection",
+    "question_response_overlap": "question_response_overlap",
+    "response_length_ratio": "response_length_ratio",
+    "rouge_l": "rouge_l",
+    "chunk_attribution": "chunk_attribution",
 }
 
 
@@ -56,6 +61,10 @@ class ExportResults:
                     (s for s in primary_trace.scores if s.scorer_name == "pass_at_k"),
                     None,
                 )
+                sc_score = next(
+                    (s for s in primary_trace.scores if s.scorer_name == "self_consistency"),
+                    None,
+                )
 
                 for trace_obj in session.traces:
                     scores_by_name = {s.scorer_name: s for s in trace_obj.scores}
@@ -79,6 +88,13 @@ class ExportResults:
                     else:
                         row["pass_at_k"] = None
                         row["pass_at_k_best_score"] = None
+
+                    if sc_score is not None:
+                        row["self_consistency"] = _score_value(sc_score)
+                        row["self_consistency_variance"] = sc_score.metadata.get("variance")
+                    else:
+                        row["self_consistency"] = None
+                        row["self_consistency_variance"] = None
 
                     fm_entry = scores_by_name.get("failure_mode")
                     row["failure_mode"] = (

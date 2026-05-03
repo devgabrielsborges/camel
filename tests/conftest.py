@@ -42,6 +42,8 @@ def sample_dataset_record() -> DatasetRecord:
         instructions=["Be polite", "Answer only based on the knowledge base"],
         chunks_big=[
             Chunk(content="Returns are accepted within 30 days of purchase.", score=1.5),
+            Chunk(content="Shipping takes 5-7 business days for standard delivery.", score=0.3),
+            Chunk(content="Contact support for refund processing details.", score=0.8),
         ],
         classes=[
             ClassDef(class_name="Returns", context="questions about return policy", class_id="P1"),
