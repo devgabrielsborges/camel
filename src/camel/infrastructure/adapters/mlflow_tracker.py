@@ -42,9 +42,26 @@ class MLflowTrackerAdapter:
     def enable_autolog(self) -> None:
         _patch_livespan_set_tag()
         mlflow.openai.autolog()
+        self._register_litellm_callback()
 
     def disable_autolog(self) -> None:
         mlflow.openai.autolog(disable=True)
+        self._unregister_litellm_callback()
+
+    @staticmethod
+    def _register_litellm_callback() -> None:
+        import litellm
+        from litellm.integrations.mlflow import MlflowLogger
+
+        if not any(isinstance(cb, MlflowLogger) for cb in litellm.callbacks):
+            litellm.callbacks.append(MlflowLogger())  # type: ignore[no-untyped-call]
+
+    @staticmethod
+    def _unregister_litellm_callback() -> None:
+        import litellm
+        from litellm.integrations.mlflow import MlflowLogger
+
+        litellm.callbacks = [cb for cb in litellm.callbacks if not isinstance(cb, MlflowLogger)]
 
     def start_run(self, evaluation: Evaluation) -> str:
         mlflow.set_experiment(evaluation.experiment_name)

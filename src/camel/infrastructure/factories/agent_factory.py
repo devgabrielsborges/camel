@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from camel.application.ports.agent_port import AgentPort
+from camel.infrastructure.config.provider_validation import validate_provider_credentials
 from camel.infrastructure.config.settings import Settings
 
 
@@ -15,6 +16,8 @@ def create_agent_adapter(settings: Settings, *, model_override: str | None = Non
     model = model_override or settings.openai_model
     provider = settings.llm_provider.lower()
     api_base = _resolve_api_base(model, settings)
+
+    validate_provider_credentials(model)
 
     if provider == "litellm":
         from camel.infrastructure.adapters.litellm_agent import LiteLLMAgentAdapter

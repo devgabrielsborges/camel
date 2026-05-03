@@ -90,11 +90,29 @@ def get_deterministic_scorers() -> list[Any]:
     return [token_overlap_f1, class_exact_match, refusal_detection]
 
 
+def _build_judge_model_uri(judge_model: str) -> str:
+    """Build MLflow model URI from a LiteLLM-style model string.
+
+    Maps 'provider/model' to 'provider:/model' (MLflow URI scheme).
+    Bare model names without a provider prefix default to 'openai:/'.
+
+    Examples:
+        'gpt-4o-mini' -> 'openai:/gpt-4o-mini'
+        'anthropic/claude-3-5-sonnet' -> 'anthropic:/claude-3-5-sonnet'
+        'bedrock/anthropic.claude-v2' -> 'bedrock:/anthropic.claude-v2'
+        'azure/my-deployment' -> 'azure:/my-deployment'
+    """
+    if "/" in judge_model:
+        provider, model_path = judge_model.split("/", 1)
+        return f"{provider}:/{model_path}"
+    return f"openai:/{judge_model}"
+
+
 def get_llm_judge_scorers(judge_model: str) -> list[Any]:
     try:
         from mlflow.genai.scorers import Correctness, Guidelines
 
-        model_uri = f"openai:/{judge_model}"
+        model_uri = _build_judge_model_uri(judge_model)
         return [
             Correctness(model=model_uri),
             Guidelines(guidelines="Be helpful and accurate.", model=model_uri),
