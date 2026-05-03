@@ -15,6 +15,12 @@ _METRIC_TYPES: dict[str, MetricType] = {
     "refusal_detection": MetricType.BINARY,
     "class_exact_match": MetricType.BINARY,
     "pass_at_k": MetricType.BINARY,
+    "hedging_detection": MetricType.BINARY,
+    "question_response_overlap": MetricType.CONTINUOUS,
+    "response_length_ratio": MetricType.CONTINUOUS,
+    "rouge_l": MetricType.CONTINUOUS,
+    "chunk_attribution": MetricType.CONTINUOUS,
+    "self_consistency": MetricType.CONTINUOUS,
 }
 
 _TEST_MAP: dict[MetricType, tuple[str, str]] = {

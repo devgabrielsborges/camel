@@ -15,6 +15,12 @@ _SCORE_COLUMNS = (
     "class_exact_match",
     "groundedness",
     "pass_at_k",
+    "hedging_detection",
+    "question_response_overlap",
+    "response_length_ratio",
+    "rouge_l",
+    "chunk_attribution",
+    "self_consistency",
 )
 
 _QUERY = """
@@ -25,7 +31,13 @@ SELECT
     e.refusal_detection,
     e.class_exact_match,
     e.groundedness,
-    e.pass_at_k
+    e.pass_at_k,
+    e.hedging_detection,
+    e.question_response_overlap,
+    e.response_length_ratio,
+    e.rouge_l,
+    e.chunk_attribution,
+    e.self_consistency
 FROM fct_evaluation_scores e
 JOIN fct_inference_results i
     ON e.session_id = i.session_id AND e.run_id = i.run_id
