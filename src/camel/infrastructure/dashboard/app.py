@@ -24,6 +24,7 @@ from camel.infrastructure.dashboard.stats import (
     build_stats_table,
 )
 
+_GROUP_COL = "model_label"
 _MAX_RADAR_MODELS = 4
 _PAGE_TITLE = "CAMEL Evaluation Dashboard"
 _TAB_NAMES = ["Overview", "Comparison", "Distributions", "Failure Modes", "Deep Dive"]
@@ -64,8 +65,8 @@ def main() -> None:
         st.warning("No data matches the current filters. Adjust filters in the sidebar.")
         return
 
-    for model_name in df_filtered["run_id"].unique():
-        model_count = len(df_filtered[df_filtered["run_id"] == model_name])
+    for model_name in df_filtered[_GROUP_COL].unique():
+        model_count = len(df_filtered[df_filtered[_GROUP_COL] == model_name])
         if model_count < 2:
             st.warning(
                 f"Model **{model_name}** has only {model_count} row(s). "
@@ -94,7 +95,7 @@ def _render_overview(tab: st.delta_generator.DeltaGenerator, df: pd.DataFrame) -
             st.info("No metric columns contain data.")
             return
 
-        n_models = df["run_id"].nunique()
+        n_models = df[_GROUP_COL].nunique()
         if n_models > _MAX_RADAR_MODELS:
             st.warning(
                 f"{n_models} models selected — radar chart may be crowded. "
@@ -115,7 +116,7 @@ def _render_overview(tab: st.delta_generator.DeltaGenerator, df: pd.DataFrame) -
                 )
 
         st.subheader("Metric Radar")
-        fig = radar_chart(df, available_metrics)
+        fig = radar_chart(df, available_metrics, group_col=_GROUP_COL)
         st.plotly_chart(fig, use_container_width=True)
 
 
@@ -129,9 +130,9 @@ def _render_comparison(tab: st.delta_generator.DeltaGenerator, df: pd.DataFrame)
     with tab:
         st.header("Statistics")
         available_metrics = _get_available_metrics(df)
-        models = sorted(df["run_id"].unique())
+        models = sorted(df[_GROUP_COL].unique())
 
-        stats_df = build_stats_table(df, available_metrics)
+        stats_df = build_stats_table(df, available_metrics, group_col=_GROUP_COL)
         if not stats_df.empty:
             st.subheader("Descriptive Statistics")
             st.dataframe(stats_df, use_container_width=True)
@@ -151,7 +152,11 @@ def _render_comparison(tab: st.delta_generator.DeltaGenerator, df: pd.DataFrame)
                 st.warning("Select two different models to compare.")
             else:
                 cmp_df = build_comparison_table(
-                    df, available_metrics, model_a=model_a, model_b=model_b
+                    df,
+                    available_metrics,
+                    model_a=model_a,
+                    model_b=model_b,
+                    group_col=_GROUP_COL,
                 )
                 if not cmp_df.empty:
                     styled = cmp_df.style.apply(_highlight_significant, axis=1)
@@ -164,7 +169,7 @@ def _render_distributions(tab: st.delta_generator.DeltaGenerator, df: pd.DataFra
     with tab:
         st.header("Score Distributions")
         available_metrics = _get_available_metrics(df)
-        fig = box_plots(df, available_metrics)
+        fig = box_plots(df, available_metrics, group_col=_GROUP_COL)
         st.plotly_chart(fig, use_container_width=True)
 
 
@@ -175,7 +180,7 @@ def _render_failure_modes(tab: st.delta_generator.DeltaGenerator, df: pd.DataFra
         col1, col2 = st.columns(2)
         with col1:
             st.subheader("By model")
-            fig = failure_mode_bars(df, group_col="run_id")
+            fig = failure_mode_bars(df, group_col=_GROUP_COL)
             st.plotly_chart(fig, use_container_width=True)
 
         with col2:
@@ -194,7 +199,7 @@ def _render_sankey_section(df: pd.DataFrame) -> None:
         st.info("Sankey diagram requires category, refusal, and failure mode columns.")
         return
 
-    models = sorted(df["run_id"].unique())
+    models = sorted(df[_GROUP_COL].unique())
     if len(models) <= 1:
         fig = sankey_diagram(df)
         st.plotly_chart(fig, use_container_width=True)
@@ -204,7 +209,7 @@ def _render_sankey_section(df: pd.DataFrame) -> None:
             models,
             key="sankey_model",
         )
-        model_df = df[df["run_id"] == selected_model]
+        model_df = df[df[_GROUP_COL] == selected_model]
         fig = sankey_diagram(model_df)
         st.plotly_chart(fig, use_container_width=True)
 
@@ -232,12 +237,12 @@ def _render_deep_dive(tab: st.delta_generator.DeltaGenerator, df: pd.DataFrame) 
                     index=0,
                     key="scatter_y",
                 )
-            fig = cost_performance_scatter(df, x_col=x_col, y_col=y_col)
+            fig = cost_performance_scatter(df, x_col=x_col, y_col=y_col, color_col=_GROUP_COL)
             st.plotly_chart(fig, use_container_width=True)
 
         if "input_len" in df.columns and available_metrics:
             st.subheader("Performance vs Input Complexity")
-            fig = performance_vs_complexity(df, available_metrics)
+            fig = performance_vs_complexity(df, available_metrics, group_col=_GROUP_COL)
             st.plotly_chart(fig, use_container_width=True)
 
         _render_session_inspector(df)
@@ -251,7 +256,7 @@ def _render_session_inspector(df: pd.DataFrame) -> None:
         st.info("No input/output text columns available for inspection.")
         return
 
-    display_cols = ["session_id", "run_id"]
+    display_cols = ["session_id", _GROUP_COL]
     for col in ["failure_mode", "language_label", "data_category_QA"] + [
         c for c in METRIC_COLS if c in df.columns
     ]:

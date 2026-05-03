@@ -70,7 +70,8 @@ def apply_filters(df: pd.DataFrame, filters: dict[str, Any]) -> pd.DataFrame:
     mask = pd.Series(True, index=df.index)
 
     if filters["models"]:
-        mask &= df["run_id"].isin(filters["models"])
+        model_col = "model_label" if "model_label" in df.columns else "run_id"
+        mask &= df[model_col].isin(filters["models"])
 
     if filters["categories"] and "data_category_QA" in df.columns:
         mask &= df["data_category_QA"].isin(filters["categories"])
@@ -95,6 +96,7 @@ def show_filter_summary(df_original: pd.DataFrame, df_filtered: pd.DataFrame) ->
     st.sidebar.divider()
     st.sidebar.metric("Rows", f"{filtered} / {total}")
 
-    if "run_id" in df_filtered.columns:
-        n_models = df_filtered["run_id"].nunique()
+    model_col = "model_label" if "model_label" in df_filtered.columns else "run_id"
+    if model_col in df_filtered.columns:
+        n_models = df_filtered[model_col].nunique()
         st.sidebar.metric("Models selected", str(n_models))

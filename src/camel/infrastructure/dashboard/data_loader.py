@@ -81,13 +81,20 @@ def load_merged_data(db_path: str) -> pd.DataFrame:
         on=merge_cols,
         how="left",
     )
+
+    if "model" in merged.columns:
+        merged["model_label"] = merged["model"].fillna(merged["run_id"])
+    else:
+        merged["model_label"] = merged["run_id"]
+
     return merged
 
 
 def get_available_models(df: pd.DataFrame) -> list[str]:
-    if "run_id" not in df.columns:
+    col = "model_label" if "model_label" in df.columns else "run_id"
+    if col not in df.columns:
         return []
-    return sorted(df["run_id"].dropna().unique().tolist())
+    return sorted(df[col].dropna().unique().tolist())
 
 
 def get_filter_options(df: pd.DataFrame) -> dict[str, Any]:
