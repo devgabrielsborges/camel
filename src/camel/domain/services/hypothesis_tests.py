@@ -193,12 +193,21 @@ def run_chi2(
     table = np.array([[cand_pos, cand_neg], [ref_pos, ref_neg]])
     if table.min() == 0 and table.max() == 0:
         return TestResult(
-            metric_name=metric_name, category=category, test_name="chi2",
-            statistic=0.0, p_value=1.0, p_value_adjusted=1.0,
-            reject_null=False, effect_size=1.0, effect_magnitude="negligible",
-            ci_lower=0.0, ci_upper=0.0,
-            candidate_value=0.0, threshold_value=0.0,
-            sample_size_candidate=len(cand), sample_size_reference=len(ref),
+            metric_name=metric_name,
+            category=category,
+            test_name="chi2",
+            statistic=0.0,
+            p_value=1.0,
+            p_value_adjusted=1.0,
+            reject_null=False,
+            effect_size=1.0,
+            effect_magnitude="negligible",
+            ci_lower=0.0,
+            ci_upper=0.0,
+            candidate_value=0.0,
+            threshold_value=0.0,
+            sample_size_candidate=len(cand),
+            sample_size_reference=len(ref),
             is_paired=False,
         )
 
@@ -253,7 +262,9 @@ def run_bootstrap_ci(
 
     reject = ci_upper < threshold_value
 
-    relative_diff = (candidate_mean - threshold_value) / threshold_value if threshold_value != 0 else 0.0
+    relative_diff = (
+        (candidate_mean - threshold_value) / threshold_value if threshold_value != 0 else 0.0
+    )
 
     return TestResult(
         metric_name=metric_name,
@@ -288,9 +299,7 @@ def apply_bh_correction(
 
     corrected: list[TestResult] = []
     for result, adj_p, rej in zip(test_results, adjusted_arr, reject_arr):
-        corrected.append(
-            replace(result, p_value_adjusted=float(adj_p), reject_null=bool(rej))
-        )
+        corrected.append(replace(result, p_value_adjusted=float(adj_p), reject_null=bool(rej)))
     return corrected
 
 
@@ -320,23 +329,32 @@ def _run_test_for_metric(
     if is_paired and reference_scores is not None and common_ids is not None:
         if mt == MetricType.BINARY:
             return run_mcnemar(
-                candidate_scores, reference_scores, common_ids,
-                metric_name=mn, category=category,
+                candidate_scores,
+                reference_scores,
+                common_ids,
+                metric_name=mn,
+                category=category,
             )
         return run_wilcoxon(
-            candidate_scores, reference_scores,
-            metric_name=mn, category=category,
+            candidate_scores,
+            reference_scores,
+            metric_name=mn,
+            category=category,
         )
 
     if reference_scores is not None:
         if mt == MetricType.BINARY:
             return run_chi2(
-                candidate_scores, reference_scores,
-                metric_name=mn, category=category,
+                candidate_scores,
+                reference_scores,
+                metric_name=mn,
+                category=category,
             )
         return run_mannwhitneyu(
-            candidate_scores, reference_scores,
-            metric_name=mn, category=category,
+            candidate_scores,
+            reference_scores,
+            metric_name=mn,
+            category=category,
         )
 
     return run_bootstrap_ci(
@@ -378,7 +396,8 @@ def run_all_tests(
             if cand_scores is None:
                 logger.warning(
                     "Metric '%s' not found in candidate category '%s' — skipping",
-                    mt.metric_name, category,
+                    mt.metric_name,
+                    category,
                 )
                 continue
 
@@ -386,17 +405,38 @@ def run_all_tests(
             if ref_col is not None:
                 ref_scores = ref_col.scores.get(mt.metric_name)
 
-            if is_paired and ref_scores is not None and common_ids is not None and ref_col is not None:
+            if (
+                is_paired
+                and ref_scores is not None
+                and common_ids is not None
+                and ref_col is not None
+            ):
                 cand_id_idx = {sid: i for i, sid in enumerate(cand_col.session_ids)}
                 ref_id_idx = {sid: i for i, sid in enumerate(ref_col.session_ids)}
-                paired_cand = tuple(cand_scores[cand_id_idx[sid]] for sid in common_ids if sid in cand_id_idx)
-                paired_ref = tuple(ref_scores[ref_id_idx[sid]] for sid in common_ids if sid in ref_id_idx)
+                paired_cand = tuple(
+                    cand_scores[cand_id_idx[sid]] for sid in common_ids if sid in cand_id_idx
+                )
+                paired_ref = tuple(
+                    ref_scores[ref_id_idx[sid]] for sid in common_ids if sid in ref_id_idx
+                )
                 result = _run_test_for_metric(
-                    mt, category, paired_cand, paired_ref, common_ids, True, profile,
+                    mt,
+                    category,
+                    paired_cand,
+                    paired_ref,
+                    common_ids,
+                    True,
+                    profile,
                 )
             else:
                 result = _run_test_for_metric(
-                    mt, category, cand_scores, ref_scores, None, False, profile,
+                    mt,
+                    category,
+                    cand_scores,
+                    ref_scores,
+                    None,
+                    False,
+                    profile,
                 )
 
             all_results.append(result)
@@ -405,7 +445,13 @@ def run_all_tests(
         cand_scores_for_global = _collect_global_metric(mt.metric_name, cand_by_cat)
         if cand_scores_for_global is not None:
             result = _run_test_for_metric(
-                mt, "global", cand_scores_for_global, None, None, False, profile,
+                mt,
+                "global",
+                cand_scores_for_global,
+                None,
+                None,
+                False,
+                profile,
             )
             all_results.append(result)
 
