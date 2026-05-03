@@ -1,9 +1,18 @@
-# CAMEL — Capability Assessment Methodology for Evaluating LLMs
+<p align="center">
+  <img src="docs/camell.png" alt="CAMEL" width="160"/>
+</p>
 
-End-to-end pipeline for evaluating Q&A chatbot agents using the
-[WeniEval Benchmark 2.0](https://huggingface.co/datasets/Weni/WeniEval-Benchmark-2.0.0).
-Runs batch inference via the OpenAI Agents SDK, scores responses with
-deterministic metrics and LLM-as-judge, and tracks everything in MLflow.
+<h1 align="center">CAMEL</h1>
+<p align="center"><strong>Capability Assessment Methodology for Evaluating Large Language Models</strong></p>
+
+<p align="center">
+  End-to-end pipeline for evaluating Q&A chatbot agents using the
+  <a href="https://huggingface.co/datasets/Weni/WeniEval-Benchmark-2.0.0">WeniEval Benchmark 2.0</a>.<br/>
+  Runs batch inference via the OpenAI Agents SDK, scores responses with
+  deterministic xAI metrics and LLM-as-judge, and produces a statistically grounded capability verdict tracked in MLflow.
+</p>
+
+---
 
 ## Architecture
 
@@ -14,8 +23,9 @@ src/camel/
 └── infrastructure/  # Adapters (OpenAI, MLflow, DuckDB), CLI, config, dashboard
 ```
 
-Clean Architecture with strict layer boundaries.
-Domain-Driven Design with Evaluation, Session, and Trace entities.
+Built on **Clean Architecture** with strict layer boundaries and **Domain-Driven Design** with Evaluation, Session, and Trace entities.
+
+**Design patterns**: Ports & Adapters (swap OpenAI/LiteLLM without touching use cases), Factory (agent instantiation from config strings), Decorator (CachedAgent for disk persistence and Pass@k).
 
 ## Prerequisites
 
@@ -34,15 +44,30 @@ cp .env.example .env
 docker compose up -d
 ```
 
-## Data Preparation
+## Data Pipeline
+
+Medallion architecture with dbt + DuckDB:
+
+```
+data/
+├── bronze/   # Raw dataset from HuggingFace
+├── silver/   # Stratified sample (filtered + sampled)
+└── camel.duckdb
+```
+
+| Layer | Source | Description |
+|-------|--------|-------------|
+| **Bronze** | HuggingFace | Raw parquet ingestion (`stg_raw_dataset`) |
+| **Silver** | Bronze | Stratified sampling with inverse-frequency weights, preserving class proportions (`data_category_QA ∈ {positivo, negativo}`) |
+| **Gold** | dbt + results | Joined inference + evaluation results (`fct_inference_results`, `fct_evaluation_scores`) |
+
+### Prepare Data
 
 ```bash
 camel prepare
 ```
 
-Downloads the dataset to `data/bronze/`, applies stratified sampling to produce `data/silver/`, and runs dbt transformations.
-
-Options:
+Downloads dataset to `data/bronze/`, applies stratified sampling to `data/silver/`, and runs dbt transformations.
 
 ```bash
 camel prepare --skip-download          # reuse existing bronze parquet
@@ -58,8 +83,7 @@ camel prepare --skip-download --gold   # build gold models after a pipeline run
 camel run --limit 100
 ```
 
-Runs inference, evaluation, and export in sequence.
-Results appended to `$RESULTS_DIR/predictions.jsonl`.
+Runs inference, evaluation, and export in sequence. Results appended to `$RESULTS_DIR/predictions.jsonl`.
 
 ### Individual Commands
 
@@ -98,133 +122,127 @@ camel derive-thresholds --help
 
 ### LiteLLM Support
 
-Set `LLM_PROVIDER=litellm` in `.env` to use any provider supported by
-[LiteLLM](https://docs.litellm.ai/docs/providers). The `--model` flag
-(or `OPENAI_MODEL` env var) uses the `provider/model` format:
+Set `LLM_PROVIDER=litellm` in `.env` to use any provider supported by [LiteLLM](https://docs.litellm.ai/docs/providers). The `--model` flag uses the `provider/model` format:
 
 ```bash
-# Anthropic
 camel run --model anthropic/claude-3-haiku-20240307 --limit 10
-
-# Azure OpenAI
 camel run --model azure/gpt-4o --limit 10
-
-# Groq
 camel infer --model groq/llama3-8b-8192 --limit 10
 ```
 
-When using `LLM_PROVIDER=openai` (default), the model name is passed directly
-to the OpenAI Agents SDK.
+When using `LLM_PROVIDER=openai` (default), the model name is passed directly to the OpenAI Agents SDK.
 
 ## Scorers
 
-| Scorer | Type | Description |
-|--------|------|-------------|
-| `token_overlap_f1` | Deterministic | Unigram F1 between response and content (tiktoken) |
-| `class_exact_match` | Deterministic | Agent's class vs ground-truth `chosen_class_id` |
-| `refusal_detection` | Deterministic | Detects refusal patterns (EN/PT/ES) via NLTK stemming |
-| `groundedness` | TruLens | Response grounded in source content (CoT reasoning) |
-| `pass@3` | Composite | At least 1 of 3 responses (temp=0.7) passes threshold |
-| `failure_mode` | Derived | Categorizes prediction into failure type |
-| `correctness` | LLM Judge | MLflow Correctness scorer against expected response |
-| `guidelines` | LLM Judge | MLflow Guidelines scorer against instructions |
+### Deterministic xAI Metrics
+
+| Scorer | Description |
+|--------|-------------|
+| `token_overlap_f1` | Unigram F1 between response and content (tiktoken `o200k_base` encoding) |
+| `rouge_l` | LCS-based F1 over tiktoken token ID sequences via dynamic programming |
+| `self_consistency` | Average pairwise token overlap F1 across k=3 responses (deterministic semantic entropy approximation) |
+| `chunk_attribution` | Per-chunk F1 + Shannon entropy + Spearman correlation with chunk relevance scores |
+| `hedging_detection` | Multilingual pattern matching (EN/PT/ES) for uncertainty language |
+| `question_response_overlap` | Unigram F1 between question and response tokens (off-topic detection) |
+| `response_length_ratio` | Token count ratio of response to reference content (verbosity calibration) |
+| `class_exact_match` | Agent's class vs ground-truth `chosen_class_id` |
+| `refusal_detection` | Detects refusal patterns (EN/PT/ES) via NLTK stemming |
+| `pass@3` | At least 1 of 3 responses (temp=0.7) passes F1 threshold |
+
+### LLM-as-Judge
+
+| Scorer | Description |
+|--------|-------------|
+| `correctness` | MLflow Correctness scorer against expected response |
+| `guidelines` | MLflow Guidelines scorer against instructions |
+| `groundedness` | TruLens — response grounded in source content (CoT reasoning) |
 
 ### Failure Modes
 
-Each prediction is classified into one of:
+Each prediction is classified into one of seven modes via a hierarchical decision tree (first match wins):
 
-| Mode | Condition |
-|------|-----------|
-| `correct_extraction` | High overlap + positivo category |
-| `correct_refusal` | Refusal detected + negativo category |
-| `false_refusal` | Refusal detected + positivo category |
-| `hallucination` | Moderate overlap + negativo category |
-| `off_topic` | Very low overlap + no refusal |
-| `partial_answer` | All other cases |
+| Mode | Condition | Outcome |
+|------|-----------|---------|
+| `false_refusal` | Refusal detected + positivo | Error |
+| `correct_refusal` | Refusal detected + negativo | Correct |
+| `correct_extraction` | Overlap > 0.5 + positivo | Correct |
+| `hallucination` | Overlap > 0.3 + negativo | Error |
+| `off_topic` | Overlap < 0.1 + no refusal | Error |
+| `hedging_answer` | Hedging detected + positivo | Warning |
+| `partial_answer` | Otherwise | Partial |
 
-### Capability Verdict
+## Statistical Verdict
 
-After scoring, the pipeline produces a verdict: **capable**, **not_capable**, or **inconclusive**.
+The capability verdict is determined through a two-gate decision mechanism requiring both statistical and practical significance.
 
-#### Legacy Verdict
+### Threshold Derivation
 
-Fixed-threshold comparison (backward compatible):
-1. **Positivo**: mean `token_overlap_f1` >= threshold
-2. **Negativo**: refusal rate >= threshold OR low overlap
-3. **Discrimination**: significant delta between positivo/negativo overlap
-
-#### Statistical Verdict (v2)
-
-Empirically-derived thresholds with hypothesis testing. Requires a `ThresholdProfile` artifact generated from known-good reference model runs.
-
-**Threshold derivation** — bootstrap resampling (B=10,000) from reference models establishes percentile-based thresholds with 95% confidence intervals:
+Bootstrap resampling (B=10,000) from reference model runs establishes percentile-based thresholds with 95% CIs:
 
 ```bash
 camel derive-thresholds --models gpt-5.4-mini --models gpt-5.4 --models gpt-5.1
 ```
 
-**Hypothesis testing** — the pipeline automatically runs the appropriate test for each metric:
+For composite metrics (discrimination delta), the bootstrap operates over paired category means: `δ* = |mean(positivo) - mean(negativo)|`.
+
+### Hypothesis Testing
+
+The pipeline automatically routes each metric to the appropriate test:
 
 | Metric Type | Paired Test | Unpaired Test | Effect Size |
 |-------------|-------------|---------------|-------------|
-| Continuous (`token_overlap_f1`) | Wilcoxon signed-rank | Mann-Whitney U | Cohen's d |
-| Binary (`refusal_detection`) | McNemar's exact | Chi-squared | Odds ratio |
+| Continuous (`token_overlap_f1`, `rouge_l`, etc.) | Wilcoxon signed-rank | Mann-Whitney U | Cohen's d |
+| Binary (`refusal_detection`, `pass_at_k`) | McNemar's exact | Chi-squared | Odds ratio |
 | Composite (`discrimination_delta`) | Bootstrap CI | Bootstrap CI | Relative diff |
 
-Multiple testing correction via Benjamini-Hochberg (FDR q=0.05). A model is NOT_CAPABLE only when both statistically significant (p < α after BH) AND practically significant (medium/large effect size).
+Pairing is detected via session ID overlap (≥80% common IDs). McNemar uses exact binomial when discordant pairs < 25.
+
+### Multiple Testing Correction
+
+Benjamini-Hochberg FDR correction at α = 0.05. Bootstrap results are excluded from the FDR pool (CI-based rejection, not p-value-based).
+
+### Verdict Decision
+
+A **critical failure** requires both gates triggered for a metric in the critical set `{(F1, positivo), (F1, negativo), (refusal, negativo), (Δ_disc, global)}`:
+
+| Verdict | Condition |
+|---------|-----------|
+| **CAPABLE** | No critical failures, no inconclusive signals |
+| **NOT_CAPABLE** | At least one critical failure (reject + medium/large effect) |
+| **INCONCLUSIVE** | No critical failures, but rejection with small effect size |
+
+Effect size thresholds (Cohen's conventions):
+- Continuous: small ≥ 0.2, medium ≥ 0.5, large ≥ 0.8
+- Binary (odds ratio): small ≥ 1.5, medium ≥ 2.0, large ≥ 3.0
 
 When no `ThresholdProfile` exists, the pipeline falls back to legacy verdict with a warning.
 
 ## Dashboard
 
-Interactive Streamlit dashboard for exploring evaluation results, comparing
-models, and inspecting individual sessions.
-
-### Launch
+Interactive Streamlit dashboard for exploring evaluation results.
 
 ```bash
 camel dashboard
+camel dashboard --db-path data/gold/camel.duckdb --port 8502 --no-browser
 ```
-
-Options:
-
-```bash
-camel dashboard --db-path data/gold/camel.duckdb  # custom DB path
-camel dashboard --port 8502                        # custom port
-camel dashboard --no-browser                       # headless mode
-```
-
-### Tabs
 
 | Tab | Description |
 |-----|-------------|
 | **Overview** | KPI cards (mean ± std) and radar chart for all metrics |
-| **Comparison** | Descriptive statistics table; pairwise model comparison with Welch's t-test, delta, and significance highlighting |
+| **Comparison** | Descriptive statistics; pairwise model comparison with Welch's t-test and significance highlighting |
 | **Distributions** | Side-by-side box plots per metric, colored by model |
-| **Failure Modes** | Stacked bar charts (by model & category) and Sankey diagram (category → refusal → failure mode) |
-| **Deep Dive** | Cost-performance scatter, performance-vs-complexity line charts, and session inspector with full I/O text |
+| **Failure Modes** | Stacked bar charts and Sankey diagram (category → refusal → failure mode) |
+| **Deep Dive** | Cost-performance scatter, performance-vs-complexity charts, and session inspector |
 
-### Features
+## MLflow Tracking
 
-- **Multi-model comparison**: select 2+ models to see overlaid radar polygons, side-by-side box plots, and statistical significance (p < 0.05) highlighted in green
-- **Interactive filtering**: sidebar filters for model, category, language, failure mode, and score range sliders
-- **Statistics**: mean, std, variance, CV, quartiles (Q1/Q2/Q3), IQR, min/max, z-scores, Welch's t-test p-values
-- **Session inspection**: select any session to view the full input/output text
+Every evaluation run is logged with full lineage:
 
-## Data Pipeline
-
-Medallion architecture with dbt + DuckDB:
-
-```
-data/
-├── bronze/   # Raw dataset from HuggingFace
-├── silver/   # Stratified sample (filtered + sampled)
-└── camel.duckdb
-```
-
-- **Bronze** (`data/bronze/`): Raw parquet ingestion (`stg_raw_dataset`)
-- **Silver** (`data/silver/`): Stratified sampling preserving class proportions (`data_category_QA ∈ {positivo, negativo}`), loaded into dbt as `int_filtered_dataset`
-- **Gold** (dbt + `results/`): Joined inference + evaluation results (`fct_inference_results`, `fct_evaluation_scores`)
+- **Run metadata**: model, prompt version, dataset registration, verdict tags
+- **Inference tracing**: OpenAI autolog + LiteLLM callback for provider-agnostic spans
+- **Metrics**: per-metric aggregates, failure mode counts/rates, per-test p-values, effect sizes
+- **Prompt registry**: version-tracked via MLflow GenAI API
+- **Dataset registry**: records merged into MLflow datasets for provenance
 
 ## Testing
 
@@ -257,20 +275,19 @@ All configuration via `.env`. See `.env.example` for the full list.
 | `SILVER_PARQUET_PATH` | Silver layer path | `data/silver/train_sample.parquet` |
 | `SAMPLE_FRACTION` | Fraction of dataset to sample | `0.1` |
 | `SAMPLE_SEED` | Random seed for reproducibility | `42` |
-| `PASS_AT_K` | Number of responses per question for Pass@k | `3` |
-| `PASS_AT_K_TEMPERATURE` | Temperature for diverse Pass@k responses | `0.7` |
+| `PASS_AT_K` | Number of responses per question | `3` |
+| `PASS_AT_K_TEMPERATURE` | Temperature for diverse responses | `0.7` |
 | `BATCH_SIZE` | Rows per batch | `50` |
 | `CONCURRENCY` | Max concurrent calls | `10` |
-| `DUCKDB_PATH` | Path to DuckDB database (used by dashboard) | `data/gold/camel.duckdb` |
-| `THRESHOLD_PROFILE_PATH` | Path to ThresholdProfile JSON for statistical verdict | `data/thresholds/profile.json` |
+| `DUCKDB_PATH` | Path to DuckDB database | `data/gold/camel.duckdb` |
+| `THRESHOLD_PROFILE_PATH` | ThresholdProfile JSON for statistical verdict | `data/thresholds/profile.json` |
 
-## Output JSONL
+## Output
 
-Results are exported as JSONL (one JSON object per line) to `results/predictions.jsonl`.
-New runs **append** to the file, so historical results are preserved. Each record includes
-`run_id` and `timestamp` fields to distinguish runs.
+Results are exported as JSONL (one JSON object per line) to `results/predictions.jsonl`. New runs **append** to preserve historical results. Each record includes `run_id` and `timestamp` to distinguish runs.
 
-Fields: `id, run_id, timestamp, question, prediction, data_category_QA, language, model,
-correctness_score, guidelines_score, token_overlap_f1, class_exact_match,
-refusal_detection, groundedness_score, pass_at_k, pass_at_k_best_score,
-failure_mode`
+## Links
+
+- [GitHub](https://github.com/devgabrielsborges/camel)
+- [Codeberg](https://codeberg.org/devgabrielsborges/camel)
+- [WeniEval Benchmark 2.0 Dataset](https://huggingface.co/datasets/Weni/WeniEval-Benchmark-2.0.0)
