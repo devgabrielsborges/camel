@@ -102,6 +102,16 @@ def run_pipeline(
         "--no-cache",
         help="Disable inference cache (always call the LLM)",
     ),
+    legacy_verdict: bool = typer.Option(
+        False,
+        "--legacy-verdict",
+        help="Skip statistical verdict and only compute legacy verdict",
+    ),
+    threshold_profile: Optional[str] = typer.Option(
+        None,
+        "--threshold-profile",
+        help="Path to ThresholdProfile JSON (overrides THRESHOLD_PROFILE_PATH)",
+    ),
 ) -> None:
     """Execute the full pipeline: prepare -> infer -> evaluate -> export -> gold."""
     from pathlib import Path
@@ -191,12 +201,17 @@ def run_pipeline(
 
     export_results = ExportResults()
 
+    resolved_profile_path = threshold_profile or settings.threshold_profile_path
+
     pipeline = RunPipeline(
         tracker_adapter=tracker_adapter,
         register_dataset=register_dataset,
         run_inference=run_inference,
         run_evaluation=run_evaluation,
         export_results=export_results,
+        threshold_profile_path=resolved_profile_path,
+        reference_db_path=settings.duckdb_path,
+        legacy_verdict_only=legacy_verdict,
     )
 
     with _create_progress() as progress:
@@ -286,8 +301,16 @@ def run_pipeline(
             typer.echo(f"  {m.scorer_name}: mean={m.mean:.4f}, std={m.std:.4f}, n={m.count}")
 
     if result.verdict:
-        typer.echo(f"\nVerdict: {result.verdict.verdict.value}")
+        typer.echo(f"\nVerdict (legacy): {result.verdict.verdict.value}")
         for reason in result.verdict.reasons:
+            typer.echo(f"  - {reason}")
+
+    if result.statistical_verdict:
+        typer.echo(f"\nVerdict (statistical): {result.statistical_verdict.verdict.value}")
+        typer.echo(f"  Profile version: {result.statistical_verdict.threshold_profile_version}")
+        typer.echo(f"  Tests run: {len(result.statistical_verdict.test_results)}")
+        typer.echo(f"  Critical failures: {len(result.statistical_verdict.critical_failures)}")
+        for reason in result.statistical_verdict.reasons:
             typer.echo(f"  - {reason}")
 
     if isinstance(agent_adapter, CachedAgentAdapter):

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import numpy as np
-import pytest
 from scipy import stats
 from statsmodels.stats.multitest import multipletests
 
@@ -10,7 +9,6 @@ from camel.domain.services.hypothesis_tests import (
     detect_pairing,
     run_all_tests,
     run_bootstrap_ci,
-    run_chi2,
     run_mannwhitneyu,
     run_mcnemar,
     run_wilcoxon,
@@ -28,12 +26,70 @@ from camel.domain.value_objects.threshold_profile import ThresholdProfile
 class TestRunMcnemar:
     def test_known_table_significant(self) -> None:
         """Asymmetric discordant pair table → should be significant."""
-        candidate = (1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-                     1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
-                     0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
-        reference = (1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
-                     0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-                     1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0)
+        candidate = (
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+        )
+        reference = (
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+        )
         ids = tuple(f"s{i}" for i in range(30))
         result = run_mcnemar(candidate, reference, ids, metric_name="refusal", category="neg")
         assert isinstance(result, TestResult)
@@ -57,12 +113,70 @@ class TestRunMcnemar:
         assert result.test_name == "mcnemar"
 
     def test_effect_size_is_odds_ratio(self) -> None:
-        candidate = (1.0, 1.0, 0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0, 0.0,
-                     1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-                     0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
-        reference = (1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
-                     0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-                     0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
+        candidate = (
+            1.0,
+            1.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0,
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+        )
+        reference = (
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+        )
         ids = tuple(f"s{i}" for i in range(30))
         result = run_mcnemar(candidate, reference, ids, metric_name="refusal", category="neg")
         assert result.effect_size > 0
@@ -144,8 +258,12 @@ class TestRunBootstrapCI:
         rng = np.random.default_rng(42)
         scores = tuple(rng.normal(0.6, 0.1, 100).tolist())
         result = run_bootstrap_ci(
-            scores, threshold_value=0.4, bootstrap_b=2000, seed=42,
-            metric_name="delta", category="global",
+            scores,
+            threshold_value=0.4,
+            bootstrap_b=2000,
+            seed=42,
+            metric_name="delta",
+            category="global",
         )
         assert isinstance(result, TestResult)
         assert result.test_name == "bootstrap"
@@ -154,8 +272,12 @@ class TestRunBootstrapCI:
         """Scores well below threshold → reject null (CI entirely below)."""
         scores = tuple([0.1] * 50)
         result = run_bootstrap_ci(
-            scores, threshold_value=0.5, bootstrap_b=1000, seed=42,
-            metric_name="delta", category="global",
+            scores,
+            threshold_value=0.5,
+            bootstrap_b=1000,
+            seed=42,
+            metric_name="delta",
+            category="global",
         )
         assert result.reject_null is True
 
@@ -163,8 +285,12 @@ class TestRunBootstrapCI:
         """Scores well above threshold → do not reject."""
         scores = tuple([0.8] * 50)
         result = run_bootstrap_ci(
-            scores, threshold_value=0.3, bootstrap_b=1000, seed=42,
-            metric_name="delta", category="global",
+            scores,
+            threshold_value=0.3,
+            bootstrap_b=1000,
+            seed=42,
+            metric_name="delta",
+            category="global",
         )
         assert result.reject_null is False
 
@@ -299,27 +425,42 @@ class TestRunAllTests:
                 "positivo": [
                     MetricThreshold(
                         metric_name="token_overlap_f1",
-                        value=0.3, ci_lower=0.25, ci_upper=0.35,
+                        value=0.3,
+                        ci_lower=0.25,
+                        ci_upper=0.35,
                         metric_type=MetricType.CONTINUOUS,
-                        test_paired="wilcoxon", test_unpaired="mannwhitneyu",
-                        reference_mean=0.5, reference_std=0.1, sample_count=100,
+                        test_paired="wilcoxon",
+                        test_unpaired="mannwhitneyu",
+                        reference_mean=0.5,
+                        reference_std=0.1,
+                        sample_count=100,
                     ),
                     MetricThreshold(
                         metric_name="refusal_detection",
-                        value=0.05, ci_lower=0.02, ci_upper=0.08,
+                        value=0.05,
+                        ci_lower=0.02,
+                        ci_upper=0.08,
                         metric_type=MetricType.BINARY,
-                        test_paired="mcnemar", test_unpaired="chi2",
-                        reference_mean=0.1, reference_std=0.3, sample_count=100,
+                        test_paired="mcnemar",
+                        test_unpaired="chi2",
+                        reference_mean=0.1,
+                        reference_std=0.3,
+                        sample_count=100,
                     ),
                 ],
             },
             global_thresholds=[
                 MetricThreshold(
                     metric_name="discrimination_delta",
-                    value=0.1, ci_lower=0.08, ci_upper=0.12,
+                    value=0.1,
+                    ci_lower=0.08,
+                    ci_upper=0.12,
                     metric_type=MetricType.COMPOSITE,
-                    test_paired="bootstrap", test_unpaired="bootstrap",
-                    reference_mean=0.15, reference_std=0.05, sample_count=100,
+                    test_paired="bootstrap",
+                    test_unpaired="bootstrap",
+                    reference_mean=0.15,
+                    reference_std=0.05,
+                    sample_count=100,
                 ),
             ],
         )
