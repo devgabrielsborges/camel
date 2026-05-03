@@ -35,7 +35,7 @@ class Settings(BaseSettings):
 
     ollama_api_base: str = "http://localhost:11434"
 
-    duckdb_path: str = "data/camel.duckdb"
+    duckdb_path: str = "data/gold/camel.duckdb"
     raw_parquet_path: str = "data/bronze/train.parquet"
     silver_parquet_path: str = "data/silver/train_sample.parquet"
     sample_fraction: float = Field(

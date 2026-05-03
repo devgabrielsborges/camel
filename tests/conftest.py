@@ -13,7 +13,7 @@ def settings() -> Settings:
     return Settings(
         openai_api_key="test-key",
         mlflow_tracking_uri="http://localhost:5000",
-        duckdb_path="data/camel.duckdb",
+        duckdb_path="data/gold/camel.duckdb",
         raw_parquet_path="data/bronze/train.parquet",
         silver_parquet_path="data/silver/train_sample.parquet",
         pass_at_k=3,
