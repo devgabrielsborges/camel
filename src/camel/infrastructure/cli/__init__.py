@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import camel.infrastructure.cli.dashboard_cmd  # noqa: F401
+import camel.infrastructure.cli.derive_thresholds_cmd  # noqa: F401
 import camel.infrastructure.cli.evaluate_cmd  # noqa: F401
 import camel.infrastructure.cli.export_cmd  # noqa: F401
 import camel.infrastructure.cli.infer_cmd  # noqa: F401
