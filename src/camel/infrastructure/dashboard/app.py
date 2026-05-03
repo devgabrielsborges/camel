@@ -13,7 +13,7 @@ from camel.infrastructure.dashboard.charts import (
     radar_chart,
     sankey_diagram,
 )
-from camel.infrastructure.dashboard.data_loader import METRIC_COLS, load_merged_data
+from camel.infrastructure.dashboard.data_loader import FLOAT_COLS, METRIC_COLS, load_merged_data
 from camel.infrastructure.dashboard.filters import (
     apply_filters,
     render_sidebar_filters,
@@ -168,8 +168,11 @@ def _render_comparison(tab: st.delta_generator.DeltaGenerator, df: pd.DataFrame)
 def _render_distributions(tab: st.delta_generator.DeltaGenerator, df: pd.DataFrame) -> None:
     with tab:
         st.header("Score Distributions")
-        available_metrics = _get_available_metrics(df)
-        fig = box_plots(df, available_metrics, group_col=_GROUP_COL)
+        continuous_metrics = [c for c in FLOAT_COLS if c in df.columns and df[c].notna().any()]
+        if not continuous_metrics:
+            st.info("No continuous metrics available for distribution plots.")
+            return
+        fig = box_plots(df, continuous_metrics, group_col=_GROUP_COL)
         st.plotly_chart(fig, use_container_width=True)
 
 
