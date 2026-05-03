@@ -31,6 +31,11 @@ def _make_scored_trace(session_id: str) -> Trace:
     trace.add_score(Score(scorer_name="refusal_detection", value=False))
     trace.add_score(Score(scorer_name="correctness", value=0.9, rationale="Good answer"))
     trace.add_score(Score(scorer_name="guidelines", value=0.95, rationale="Follows guidelines"))
+    trace.add_score(Score(scorer_name="hedging_detection", value=False))
+    trace.add_score(Score(scorer_name="question_response_overlap", value=0.42))
+    trace.add_score(Score(scorer_name="response_length_ratio", value=1.5))
+    trace.add_score(Score(scorer_name="rouge_l", value=0.33))
+    trace.add_score(Score(scorer_name="chunk_attribution", value=0.78))
     return trace
 
 
@@ -108,6 +113,13 @@ def test_export_jsonl_contains_expected_fields(
         "refusal_detection",
         "correctness_score",
         "guidelines_score",
+        "hedging_detection",
+        "question_response_overlap",
+        "response_length_ratio",
+        "rouge_l",
+        "chunk_attribution",
+        "self_consistency",
+        "self_consistency_variance",
     }
     assert expected_fields.issubset(set(rows[0].keys()))
 
@@ -202,6 +214,69 @@ def test_export_creates_parent_directories(
         use_case.execute(evaluation=evaluation, output_path=output_path)
 
         assert Path(output_path).exists()
+
+
+def test_export_jsonl_contains_xai_metric_values(
+    sample_dataset_record: DatasetRecord,
+) -> None:
+    evaluation = _make_evaluation_with_sessions(sample_dataset_record)
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        output_path = str(Path(tmpdir) / "predictions.jsonl")
+
+        use_case = ExportResults()
+        use_case.execute(evaluation=evaluation, output_path=output_path)
+
+        rows = _read_jsonl(output_path)
+        row = rows[0]
+
+    assert row["hedging_detection"] is False
+    assert row["question_response_overlap"] == pytest.approx(0.42)
+    assert row["response_length_ratio"] == pytest.approx(1.5)
+    assert row["rouge_l"] == pytest.approx(0.33)
+    assert row["chunk_attribution"] == pytest.approx(0.78)
+    assert row["self_consistency"] is None
+    assert row["self_consistency_variance"] is None
+
+
+def test_export_jsonl_self_consistency_session_level(
+    sample_dataset_record: DatasetRecord,
+) -> None:
+    evaluation = Evaluation(
+        evaluation_id="eval-sc",
+        experiment_name="test_experiment",
+        eval_model=ModelConfig(model_name="gpt-4o-mini", temperature=0.0),
+        prompt_version="prompts:/test/1",
+        dataset_name="test_dataset",
+        status=EvaluationStatus.COMPLETE,
+    )
+    session = Session(
+        session_id=sample_dataset_record.id,
+        evaluation_id=evaluation.evaluation_id,
+        dataset_record=sample_dataset_record,
+    )
+    trace = _make_scored_trace(sample_dataset_record.id)
+    trace.add_score(
+        Score(
+            scorer_name="self_consistency",
+            value=0.92,
+            metadata={"variance": 0.004},
+        )
+    )
+    session.add_trace(trace)
+    evaluation.add_session(session)
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        output_path = str(Path(tmpdir) / "predictions.jsonl")
+
+        use_case = ExportResults()
+        use_case.execute(evaluation=evaluation, output_path=output_path)
+
+        rows = _read_jsonl(output_path)
+        row = rows[0]
+
+    assert row["self_consistency"] == pytest.approx(0.92)
+    assert row["self_consistency_variance"] == pytest.approx(0.004)
 
 
 def test_export_returns_zero_for_no_sessions() -> None:

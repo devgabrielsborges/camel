@@ -16,11 +16,18 @@ BOOL_COLS: list[str] = [
     "class_exact_match",
     "refusal_detection",
     "pass_at_k",
+    "hedging_detection",
 ]
 FLOAT_COLS: list[str] = [
     "token_overlap_f1",
     "groundedness",
     "pass_at_k_best_score",
+    "question_response_overlap",
+    "response_length_ratio",
+    "rouge_l",
+    "chunk_attribution",
+    "self_consistency",
+    "self_consistency_variance",
 ]
 METRIC_COLS: list[str] = BOOL_COLS + FLOAT_COLS
 LANGUAGE_MAP: dict[int, str] = {1: "English", 2: "Spanish", 3: "Portuguese"}

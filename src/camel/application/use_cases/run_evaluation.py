@@ -17,7 +17,7 @@ from camel.domain.services.aggregation import (
     aggregate_scores,
 )
 from camel.domain.services.failure_modes import classify_failure_mode
-from camel.domain.services.scoring import pass_at_k, token_overlap_f1
+from camel.domain.services.scoring import pass_at_k, self_consistency, token_overlap_f1
 from camel.domain.value_objects.score import Score
 from camel.infrastructure.adapters.mlflow_tracker import MLflowTrackerAdapter
 
@@ -94,6 +94,9 @@ class RunEvaluation:
                         "chosen_class_id": record.chosen_class_id,
                         "classes": [
                             {"id": c.class_id, "class": c.class_name} for c in record.classes
+                        ],
+                        "chunks": [
+                            {"content": ch.content, "score": ch.score} for ch in record.chunks_big
                         ],
                     }
 
@@ -176,6 +179,12 @@ class RunEvaluation:
                     session.traces[0].add_score(pk_score)
                     all_scores.append(pk_score)
                     scores_by_category[record.data_category_qa].append(pk_score)
+
+                    sc_score = self_consistency(responses)
+                    if sc_score.value is not None:
+                        session.traces[0].add_score(sc_score)
+                        all_scores.append(sc_score)
+                        scores_by_category[record.data_category_qa].append(sc_score)
 
                 if on_progress is not None:
                     on_progress(scored_count, total_sessions)
