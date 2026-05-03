@@ -23,13 +23,17 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_CATEGORIES = ["positivo", "negativo"]
 
+_TOTAL_STEPS = 8
+
 _STEP_LABELS: dict[int, str] = {
-    1: "Registering prompt",
-    2: "Registering dataset",
-    3: "Running inference",
-    4: "Scoring traces",
-    5: "Exporting results",
-    6: "Computing verdict",
+    1: "Preparing data",
+    2: "Registering prompt",
+    3: "Registering dataset",
+    4: "Running inference",
+    5: "Scoring traces",
+    6: "Exporting results",
+    7: "Computing verdict",
+    8: "Building gold layer",
 }
 
 
@@ -99,7 +103,9 @@ def run_pipeline(
         help="Disable inference cache (always call the LLM)",
     ),
 ) -> None:
-    """Execute the full pipeline: register prompt -> register dataset -> infer -> evaluate -> export."""
+    """Execute the full pipeline: prepare -> infer -> evaluate -> export -> gold."""
+    from pathlib import Path
+
     from camel.application.use_cases.export_results import ExportResults
     from camel.application.use_cases.register_dataset import RegisterDataset
     from camel.application.use_cases.run_evaluation import RunEvaluation
@@ -111,6 +117,7 @@ def run_pipeline(
     from camel.domain.value_objects.prompt_template import PromptTemplate
     from camel.infrastructure.adapters.duckdb_dataset import DuckDBDatasetAdapter
     from camel.infrastructure.adapters.mlflow_tracker import MLflowTrackerAdapter
+    from camel.infrastructure.cli.prepare_cmd import _run_dbt, _stratified_sample
     from camel.infrastructure.config.settings import Settings
     from camel.infrastructure.factories.agent_factory import create_agent_adapter
     from camel.infrastructure.factories.scorer_factory import (
@@ -193,14 +200,35 @@ def run_pipeline(
     )
 
     with _create_progress() as progress:
-        steps_task = progress.add_task("Pipeline", total=6)
+        steps_task = progress.add_task("Pipeline", total=_TOTAL_STEPS)
         inference_task = progress.add_task("Inference", total=effective_total, visible=False)
         eval_task = progress.add_task("Scoring", total=effective_total, visible=False)
         export_task = progress.add_task("Exporting", total=effective_total, visible=False)
 
+        progress.update(steps_task, description=f"[1/{_TOTAL_STEPS}] Preparing data")
+        raw_path = Path(settings.raw_parquet_path)
+        silver_path = Path(settings.silver_parquet_path)
+        duckdb_path = Path(settings.duckdb_path)
+
+        needs_prepare = not silver_path.exists() or not duckdb_path.exists()
+        if needs_prepare:
+            if not raw_path.exists():
+                from camel.infrastructure.cli.prepare_cmd import _download_dataset
+
+                _download_dataset(raw_path)
+            _stratified_sample(
+                raw_path,
+                silver_path,
+                fraction=settings.sample_fraction,
+                seed=settings.sample_seed,
+            )
+            _run_dbt(gold=False)
+        progress.advance(steps_task)
+
         def _on_step(step: int, _description: str) -> None:
-            label = _STEP_LABELS.get(step, _description)
-            progress.update(steps_task, description=f"[{step}/6] {label}")
+            pipeline_step = step + 1
+            label = _STEP_LABELS.get(pipeline_step, _description)
+            progress.update(steps_task, description=f"[{pipeline_step}/{_TOTAL_STEPS}] {label}")
             if step == 3:
                 progress.update(inference_task, visible=True)
             elif step == 4:
@@ -241,7 +269,11 @@ def run_pipeline(
             typer.echo(f"Pipeline failed: {exc}", err=True)
             raise typer.Exit(code=1) from exc
 
-        progress.update(steps_task, completed=6, description="Pipeline complete")
+        progress.update(
+            steps_task, description=f"[{_TOTAL_STEPS}/{_TOTAL_STEPS}] Building gold layer"
+        )
+        _run_dbt(gold=True)
+        progress.update(steps_task, completed=_TOTAL_STEPS, description="Pipeline complete")
 
     typer.echo(f"\nPipeline complete: {result.exported_rows} rows exported to {output_path}")
     typer.echo(f"MLflow run ID: {result.run_id}")
