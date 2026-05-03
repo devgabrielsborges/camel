@@ -130,7 +130,10 @@ def sankey_diagram(df: pd.DataFrame) -> go.Figure:
         return _apply_style(go.Figure())
 
     tmp = df.copy()
-    tmp["refusal_label"] = tmp["refusal_detection"].map({True: "refused", False: "not_refused"})
+    refusal_col = tmp["refusal_detection"]
+    tmp["refusal_label"] = refusal_col.apply(
+        lambda v: "refused" if v in (True, 1, 1.0) else "not_refused"
+    )
     tmp["failure_mode"] = tmp["failure_mode"].fillna("none")
 
     categories = sorted(tmp["data_category_QA"].unique())
