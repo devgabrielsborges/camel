@@ -54,3 +54,8 @@ class Settings(BaseSettings):
 
     prompt_template_path: str = "prompts/system_prompt.j2"
     results_dir: str = "results"
+
+    threshold_profile_path: str = Field(
+        default="data/thresholds/profile.json",
+        description="Path to the ThresholdProfile JSON artifact for statistical verdict",
+    )
