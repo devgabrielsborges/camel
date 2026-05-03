@@ -100,6 +100,30 @@ def box_plots(
     return _apply_style(fig)
 
 
+def cost_performance_scatter(
+    df: pd.DataFrame,
+    x_col: str = "output_len",
+    y_col: str = "groundedness",
+    color_col: str = "run_id",
+) -> go.Figure:
+    if x_col not in df.columns or y_col not in df.columns:
+        return _apply_style(go.Figure())
+
+    hover_cols = [c for c in ["session_id", "failure_mode", "language_label"] if c in df.columns]
+
+    fig = px.scatter(
+        df,
+        x=x_col,
+        y=y_col,
+        color=color_col if color_col in df.columns else None,
+        hover_data=hover_cols or None,
+        color_discrete_sequence=COLOR_PALETTE,
+        title=f"{y_col.replace('_', ' ').title()} vs {x_col.replace('_', ' ').title()}",
+        labels={x_col: x_col.replace("_", " ").title(), y_col: y_col.replace("_", " ").title()},
+    )
+    return _apply_style(fig)
+
+
 def performance_vs_complexity(
     df: pd.DataFrame,
     metric_cols: list[str],
