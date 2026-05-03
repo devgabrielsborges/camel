@@ -18,14 +18,17 @@ from camel.infrastructure.adapters.threshold_repository import ThresholdProfileR
 def _create_synthetic_db(db_path: str, seed: int = 42) -> None:
     rng = np.random.default_rng(seed)
     conn = duckdb.connect(db_path)
-    conn.execute("""
+    conn.execute(
+        """
         CREATE TABLE fct_inference_results (
             session_id VARCHAR, run_id VARCHAR, timestamp TIMESTAMP,
             input VARCHAR, output VARCHAR, model VARCHAR,
             data_category_QA VARCHAR, language BIGINT
         )
-    """)
-    conn.execute("""
+    """
+    )
+    conn.execute(
+        """
         CREATE TABLE fct_evaluation_scores (
             session_id VARCHAR, run_id VARCHAR, timestamp TIMESTAMP,
             data_category_QA VARCHAR, language BIGINT,
@@ -35,7 +38,8 @@ def _create_synthetic_db(db_path: str, seed: int = 42) -> None:
             pass_at_k BOOLEAN, pass_at_k_best_score DOUBLE,
             failure_mode VARCHAR
         )
-    """)
+    """
+    )
     idx = 0
     for model in ("ref-model-a", "ref-model-b"):
         run_id = f"run_{model}"
@@ -76,7 +80,10 @@ class TestStatisticalVerdictPipeline:
             ref_collections = load_reference_scores(db_path, ["ref-model-a", "ref-model-b"])
             profile = derive_thresholds(
                 ref_collections,
-                bootstrap_b=500, seed=42, percentile=5, alpha=0.05,
+                bootstrap_b=500,
+                seed=42,
+                percentile=5,
+                alpha=0.05,
                 benchmark="test",
                 reference_models=("ref-model-a", "ref-model-b"),
                 reference_run_ids=("run_ref-model-a", "run_ref-model-b"),
@@ -114,7 +121,9 @@ class TestStatisticalVerdictPipeline:
 
             test_results = run_all_tests(candidate, ref_collections, loaded_profile)
             verdict = compute_statistical_verdict(
-                test_results, _CRITICAL, alpha=0.05,
+                test_results,
+                _CRITICAL,
+                alpha=0.05,
             )
             assert verdict.verdict in {Verdict.CAPABLE, Verdict.INCONCLUSIVE}
 
@@ -127,7 +136,10 @@ class TestStatisticalVerdictPipeline:
             ref_collections = load_reference_scores(db_path, ["ref-model-a", "ref-model-b"])
             profile = derive_thresholds(
                 ref_collections,
-                bootstrap_b=500, seed=42, percentile=5, alpha=0.05,
+                bootstrap_b=500,
+                seed=42,
+                percentile=5,
+                alpha=0.05,
                 benchmark="test",
                 reference_models=("ref-model-a", "ref-model-b"),
                 reference_run_ids=("run_ref-model-a", "run_ref-model-b"),
@@ -156,7 +168,9 @@ class TestStatisticalVerdictPipeline:
 
             test_results = run_all_tests(candidate, ref_collections, profile)
             verdict = compute_statistical_verdict(
-                test_results, _CRITICAL, alpha=0.05,
+                test_results,
+                _CRITICAL,
+                alpha=0.05,
             )
             assert verdict.verdict == Verdict.NOT_CAPABLE
             assert len(verdict.critical_failures) > 0
@@ -170,7 +184,11 @@ class TestStatisticalVerdictPipeline:
 
             ref = load_reference_scores(db_path, ["ref-model-a"])
             profile = derive_thresholds(
-                ref, bootstrap_b=300, seed=42, percentile=5, alpha=0.05,
+                ref,
+                bootstrap_b=300,
+                seed=42,
+                percentile=5,
+                alpha=0.05,
                 benchmark="test",
                 reference_models=("ref-model-a",),
                 reference_run_ids=("run_ref-model-a",),

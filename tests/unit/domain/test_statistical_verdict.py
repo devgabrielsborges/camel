@@ -44,8 +44,12 @@ _CRITICAL = {
 class TestComputeStatisticalVerdict:
     def test_capable_when_no_critical_failures(self) -> None:
         results = [
-            _make_test_result(reject_null=False, metric_name="token_overlap_f1", category="positivo"),
-            _make_test_result(reject_null=False, metric_name="refusal_detection", category="negativo"),
+            _make_test_result(
+                reject_null=False, metric_name="token_overlap_f1", category="positivo"
+            ),
+            _make_test_result(
+                reject_null=False, metric_name="refusal_detection", category="negativo"
+            ),
         ]
         verdict = compute_statistical_verdict(results, _CRITICAL, alpha=0.05)
         assert isinstance(verdict, StatisticalVerdictResult)
@@ -135,12 +139,18 @@ class TestComputeStatisticalVerdict:
     def test_multiple_critical_failures(self) -> None:
         results = [
             _make_test_result(
-                reject_null=True, effect_magnitude="large",
-                metric_name="token_overlap_f1", category="positivo", p_value_adjusted=0.01,
+                reject_null=True,
+                effect_magnitude="large",
+                metric_name="token_overlap_f1",
+                category="positivo",
+                p_value_adjusted=0.01,
             ),
             _make_test_result(
-                reject_null=True, effect_magnitude="medium",
-                metric_name="refusal_detection", category="negativo", p_value_adjusted=0.02,
+                reject_null=True,
+                effect_magnitude="medium",
+                metric_name="refusal_detection",
+                category="negativo",
+                p_value_adjusted=0.02,
             ),
         ]
         verdict = compute_statistical_verdict(results, _CRITICAL, alpha=0.05)

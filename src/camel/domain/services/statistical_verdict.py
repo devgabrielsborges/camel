@@ -45,7 +45,8 @@ def compute_statistical_verdict(
 
     if not critical_failures:
         has_inconclusive_signal = any(
-            r.reject_null and r.effect_magnitude == "small"
+            r.reject_null
+            and r.effect_magnitude == "small"
             and (r.metric_name, r.category) in critical_metrics
             for r in test_results
         )
