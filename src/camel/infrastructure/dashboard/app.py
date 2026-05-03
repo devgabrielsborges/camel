@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import argparse
-import sys
 
 import pandas as pd
 import streamlit as st
@@ -25,6 +24,7 @@ from camel.infrastructure.dashboard.stats import (
     build_stats_table,
 )
 
+_MAX_RADAR_MODELS = 4
 _PAGE_TITLE = "CAMEL Evaluation Dashboard"
 _TAB_NAMES = ["Overview", "Comparison", "Distributions", "Failure Modes", "Deep Dive"]
 
@@ -49,7 +49,8 @@ def main() -> None:
             f"DuckDB file not found at **{db_path}**. "
             "Run `camel prepare && camel run` first, then `cd dbt && dbt run`."
         )
-        sys.exit(1)
+        st.stop()
+        return
 
     if df.empty:
         st.warning("No evaluation data found in the database.")
@@ -63,6 +64,14 @@ def main() -> None:
         st.warning("No data matches the current filters. Adjust filters in the sidebar.")
         return
 
+    for model_name in df_filtered["run_id"].unique():
+        model_count = len(df_filtered[df_filtered["run_id"] == model_name])
+        if model_count < 2:
+            st.warning(
+                f"Model **{model_name}** has only {model_count} row(s). "
+                "Statistics like std, CV, and t-test require at least 2 samples."
+            )
+
     tabs = st.tabs(_TAB_NAMES)
 
     _render_overview(tabs[0], df_filtered)
@@ -72,11 +81,26 @@ def main() -> None:
     _render_deep_dive(tabs[4], df_filtered)
 
 
+def _get_available_metrics(df: pd.DataFrame) -> list[str]:
+    return [c for c in METRIC_COLS if c in df.columns and df[c].notna().any()]
+
+
 def _render_overview(tab: st.delta_generator.DeltaGenerator, df: pd.DataFrame) -> None:
     with tab:
         st.header("Overview")
 
-        available_metrics = [c for c in METRIC_COLS if c in df.columns]
+        available_metrics = _get_available_metrics(df)
+        if not available_metrics:
+            st.info("No metric columns contain data.")
+            return
+
+        n_models = df["run_id"].nunique()
+        if n_models > _MAX_RADAR_MODELS:
+            st.warning(
+                f"{n_models} models selected — radar chart may be crowded. "
+                f"Consider selecting {_MAX_RADAR_MODELS} or fewer."
+            )
+
         cols = st.columns(min(len(available_metrics), 4))
         for i, metric in enumerate(available_metrics):
             series = df[metric].dropna()
@@ -104,7 +128,7 @@ def _highlight_significant(row: pd.Series) -> list[str]:
 def _render_comparison(tab: st.delta_generator.DeltaGenerator, df: pd.DataFrame) -> None:
     with tab:
         st.header("Statistics")
-        available_metrics = [c for c in METRIC_COLS if c in df.columns]
+        available_metrics = _get_available_metrics(df)
         models = sorted(df["run_id"].unique())
 
         stats_df = build_stats_table(df, available_metrics)
@@ -139,7 +163,7 @@ def _render_comparison(tab: st.delta_generator.DeltaGenerator, df: pd.DataFrame)
 def _render_distributions(tab: st.delta_generator.DeltaGenerator, df: pd.DataFrame) -> None:
     with tab:
         st.header("Score Distributions")
-        available_metrics = [c for c in METRIC_COLS if c in df.columns]
+        available_metrics = _get_available_metrics(df)
         fig = box_plots(df, available_metrics)
         st.plotly_chart(fig, use_container_width=True)
 
@@ -189,7 +213,7 @@ def _render_deep_dive(tab: st.delta_generator.DeltaGenerator, df: pd.DataFrame) 
     with tab:
         st.header("Deep Dive")
 
-        available_metrics = [c for c in METRIC_COLS if c in df.columns]
+        available_metrics = _get_available_metrics(df)
 
         if "output_len" in df.columns and available_metrics:
             st.subheader("Cost-Performance Scatter")
