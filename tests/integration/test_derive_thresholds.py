@@ -8,7 +8,6 @@ import duckdb
 import numpy as np
 
 from camel.domain.services.threshold_derivation import derive_thresholds
-from camel.domain.value_objects.metric_type import MetricType
 from camel.infrastructure.adapters.duckdb_reference_scores import load_reference_scores
 from camel.infrastructure.adapters.threshold_repository import ThresholdProfileRepository
 
@@ -18,7 +17,8 @@ def _create_synthetic_db(db_path: str, n_per_category: int = 50, seed: int = 42)
     rng = np.random.default_rng(seed)
     conn = duckdb.connect(db_path)
 
-    conn.execute("""
+    conn.execute(
+        """
         CREATE TABLE fct_inference_results (
             session_id VARCHAR,
             run_id VARCHAR,
@@ -29,9 +29,11 @@ def _create_synthetic_db(db_path: str, n_per_category: int = 50, seed: int = 42)
             data_category_QA VARCHAR,
             language BIGINT
         )
-    """)
+    """
+    )
 
-    conn.execute("""
+    conn.execute(
+        """
         CREATE TABLE fct_evaluation_scores (
             session_id VARCHAR,
             run_id VARCHAR,
@@ -48,7 +50,8 @@ def _create_synthetic_db(db_path: str, n_per_category: int = 50, seed: int = 42)
             pass_at_k_best_score DOUBLE,
             failure_mode VARCHAR
         )
-    """)
+    """
+    )
 
     idx = 0
     for model in ("model-a", "model-b"):
@@ -118,9 +121,9 @@ class TestDeriveThresholdsIntegration:
 
             for c in collections:
                 for metric, scores in c.scores.items():
-                    assert len(scores) == len(c.session_ids), (
-                        f"{c.category}/{metric}: {len(scores)} scores vs {len(c.session_ids)} sessions"
-                    )
+                    assert len(scores) == len(
+                        c.session_ids
+                    ), f"{c.category}/{metric}: {len(scores)} scores vs {len(c.session_ids)} sessions"
 
     def test_profile_json_valid(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:

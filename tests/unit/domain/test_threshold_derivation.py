@@ -2,10 +2,10 @@ from __future__ import annotations
 
 import numpy as np
 
+from camel.domain.services.threshold_derivation import derive_thresholds
 from camel.domain.value_objects.category_score_collection import CategoryScoreCollection
 from camel.domain.value_objects.metric_type import MetricType
 from camel.domain.value_objects.threshold_profile import ThresholdProfile
-from camel.domain.services.threshold_derivation import derive_thresholds
 
 
 def _make_collection(
@@ -111,9 +111,9 @@ class TestDeriveThresholds:
             reference_run_ids=("run-a",),
         )
         for t in profile.category_thresholds["positivo"]:
-            assert t.ci_lower <= t.value <= t.ci_upper, (
-                f"{t.metric_name}: ci_lower={t.ci_lower}, value={t.value}, ci_upper={t.ci_upper}"
-            )
+            assert (
+                t.ci_lower <= t.value <= t.ci_upper
+            ), f"{t.metric_name}: ci_lower={t.ci_lower}, value={t.value}, ci_upper={t.ci_upper}"
 
     def test_binary_metric_threshold_in_zero_one(self) -> None:
         collections = [_make_collection("positivo")]
@@ -169,7 +169,9 @@ class TestDeriveThresholds:
             reference_models=("model-a",),
             reference_run_ids=("run-a",),
         )
-        delta_thresholds = [t for t in profile.global_thresholds if t.metric_name == "discrimination_delta"]
+        delta_thresholds = [
+            t for t in profile.global_thresholds if t.metric_name == "discrimination_delta"
+        ]
         assert len(delta_thresholds) == 1
         assert delta_thresholds[0].metric_type == MetricType.COMPOSITE
 
