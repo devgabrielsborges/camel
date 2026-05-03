@@ -8,6 +8,7 @@ import streamlit as st
 
 from camel.infrastructure.dashboard.charts import (
     box_plots,
+    cost_performance_scatter,
     failure_mode_bars,
     performance_vs_complexity,
     radar_chart,
@@ -164,12 +165,64 @@ def _render_deep_dive(tab: st.delta_generator.DeltaGenerator, df: pd.DataFrame) 
 
         available_metrics = [c for c in METRIC_COLS if c in df.columns]
 
+        if "output_len" in df.columns and available_metrics:
+            st.subheader("Cost-Performance Scatter")
+            scatter_cols = st.columns(2)
+            with scatter_cols[0]:
+                x_col = st.selectbox(
+                    "X-axis (cost proxy)",
+                    ["output_len", "input_len"],
+                    index=0,
+                    key="scatter_x",
+                )
+            with scatter_cols[1]:
+                y_col = st.selectbox(
+                    "Y-axis (metric)",
+                    available_metrics,
+                    index=0,
+                    key="scatter_y",
+                )
+            fig = cost_performance_scatter(df, x_col=x_col, y_col=y_col)
+            st.plotly_chart(fig, use_container_width=True)
+
         if "input_len" in df.columns and available_metrics:
             st.subheader("Performance vs Input Complexity")
             fig = performance_vs_complexity(df, available_metrics)
             st.plotly_chart(fig, use_container_width=True)
 
-        st.info("Cost-performance scatter and text inspection coming in a future phase.")
+        _render_session_inspector(df)
+
+
+def _render_session_inspector(df: pd.DataFrame) -> None:
+    st.subheader("Session Inspector")
+
+    has_text_cols = "input" in df.columns and "output" in df.columns
+    if not has_text_cols:
+        st.info("No input/output text columns available for inspection.")
+        return
+
+    display_cols = ["session_id", "run_id"]
+    for col in ["failure_mode", "language_label", "data_category_QA"] + [
+        c for c in METRIC_COLS if c in df.columns
+    ]:
+        if col in df.columns and col not in display_cols:
+            display_cols.append(col)
+
+    st.dataframe(
+        df[display_cols].reset_index(drop=True),
+        use_container_width=True,
+        key="session_table",
+    )
+
+    session_ids = df["session_id"].unique().tolist() if "session_id" in df.columns else []
+    if session_ids:
+        selected = st.selectbox("Select session to inspect", session_ids, key="inspect_session")
+        row = df[df["session_id"] == selected].iloc[0]
+        with st.expander(f"Session: {selected}", expanded=True):
+            st.markdown("**Input**")
+            st.text(str(row.get("input", "")))
+            st.markdown("**Output**")
+            st.text(str(row.get("output", "")))
 
 
 if __name__ == "__main__":
