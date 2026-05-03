@@ -48,9 +48,7 @@ class ThresholdProfile:
     def from_dict(cls, data: dict[str, Any]) -> ThresholdProfile:
         cat_thresholds: dict[str, list[MetricThreshold]] = {}
         for category, threshold_list in data.get("category_thresholds", {}).items():
-            cat_thresholds[category] = [
-                MetricThreshold.from_dict(t) for t in threshold_list
-            ]
+            cat_thresholds[category] = [MetricThreshold.from_dict(t) for t in threshold_list]
 
         global_thresholds = [
             MetricThreshold.from_dict(t) for t in data.get("global_thresholds", [])
