@@ -1,0 +1,142 @@
+from __future__ import annotations
+
+import argparse
+import sys
+
+import pandas as pd
+import streamlit as st
+
+from camel.infrastructure.dashboard.charts import (
+    box_plots,
+    failure_mode_bars,
+    radar_chart,
+)
+from camel.infrastructure.dashboard.data_loader import METRIC_COLS, load_merged_data
+from camel.infrastructure.dashboard.filters import (
+    apply_filters,
+    render_sidebar_filters,
+    show_filter_summary,
+)
+from camel.infrastructure.dashboard.stats import build_stats_table
+
+_PAGE_TITLE = "CAMEL Evaluation Dashboard"
+_TAB_NAMES = ["Overview", "Comparison", "Distributions", "Failure Modes", "Deep Dive"]
+
+
+def _parse_args() -> str:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--db-path", required=True, help="Path to DuckDB file")
+    args, _ = parser.parse_known_args()
+    return str(args.db_path)
+
+
+def main() -> None:
+    st.set_page_config(page_title=_PAGE_TITLE, layout="wide")
+    st.title(_PAGE_TITLE)
+
+    db_path = _parse_args()
+
+    try:
+        df = load_merged_data(db_path)
+    except FileNotFoundError:
+        st.error(
+            f"DuckDB file not found at **{db_path}**. "
+            "Run `camel prepare && camel run` first, then `cd dbt && dbt run`."
+        )
+        sys.exit(1)
+
+    if df.empty:
+        st.warning("No evaluation data found in the database.")
+        return
+
+    filters = render_sidebar_filters(df)
+    df_filtered = apply_filters(df, filters)
+    show_filter_summary(df, df_filtered)
+
+    if df_filtered.empty:
+        st.warning("No data matches the current filters. Adjust filters in the sidebar.")
+        return
+
+    tabs = st.tabs(_TAB_NAMES)
+
+    _render_overview(tabs[0], df_filtered)
+    _render_comparison(tabs[1], df_filtered)
+    _render_distributions(tabs[2], df_filtered)
+    _render_failure_modes(tabs[3], df_filtered)
+    _render_deep_dive(tabs[4], df_filtered)
+
+
+def _render_overview(tab: st.delta_generator.DeltaGenerator, df: pd.DataFrame) -> None:
+    with tab:
+        st.header("Overview")
+
+        available_metrics = [c for c in METRIC_COLS if c in df.columns]
+        cols = st.columns(min(len(available_metrics), 4))
+        for i, metric in enumerate(available_metrics):
+            series = df[metric].dropna()
+            if not series.empty:
+                mean_val = float(series.mean())
+                std_val = float(series.std())
+                cols[i % len(cols)].metric(
+                    metric.replace("_", " ").title(),
+                    f"{mean_val:.3f}",
+                    delta=f"\u00b1 {std_val:.3f}" if not pd.isna(std_val) else None,
+                    delta_color="off",
+                )
+
+        st.subheader("Metric Radar")
+        fig = radar_chart(df, available_metrics)
+        st.plotly_chart(fig, use_container_width=True)
+
+
+def _render_comparison(
+    tab: st.delta_generator.DeltaGenerator, df: pd.DataFrame
+) -> None:
+    with tab:
+        st.header("Statistics")
+        available_metrics = [c for c in METRIC_COLS if c in df.columns]
+        stats_df = build_stats_table(df, available_metrics)
+        if not stats_df.empty:
+            st.dataframe(stats_df, use_container_width=True)
+        else:
+            st.info("No metrics available for statistics.")
+
+
+def _render_distributions(
+    tab: st.delta_generator.DeltaGenerator, df: pd.DataFrame
+) -> None:
+    with tab:
+        st.header("Score Distributions")
+        available_metrics = [c for c in METRIC_COLS if c in df.columns]
+        fig = box_plots(df, available_metrics)
+        st.plotly_chart(fig, use_container_width=True)
+
+
+def _render_failure_modes(
+    tab: st.delta_generator.DeltaGenerator, df: pd.DataFrame
+) -> None:
+    with tab:
+        st.header("Failure Modes")
+
+        col1, col2 = st.columns(2)
+        with col1:
+            st.subheader("By model")
+            fig = failure_mode_bars(df, group_col="run_id")
+            st.plotly_chart(fig, use_container_width=True)
+
+        with col2:
+            st.subheader("By category")
+            fig = failure_mode_bars(df, group_col="data_category_QA")
+            st.plotly_chart(fig, use_container_width=True)
+
+
+def _render_deep_dive(
+    tab: st.delta_generator.DeltaGenerator, df: pd.DataFrame
+) -> None:
+    with tab:
+        st.header("Deep Dive")
+        st.info("Scatter plots and text inspection coming in a future phase.")
+
+
+if __name__ == "__main__":
+    main()

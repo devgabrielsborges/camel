@@ -90,8 +90,6 @@ def build_stats_table(
         return pd.DataFrame()
 
     result = pd.DataFrame(records).T
-    result.columns = pd.MultiIndex.from_tuples(
-        result.columns, names=[group_col, "statistic"]
-    )
+    result.columns = pd.MultiIndex.from_tuples(result.columns, names=[group_col, "statistic"])
     result.index.name = "metric"
     return result

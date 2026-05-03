@@ -1,0 +1,104 @@
+from __future__ import annotations
+
+import pandas as pd
+import plotly.express as px
+import plotly.graph_objects as go
+
+COLOR_PALETTE = px.colors.qualitative.Set2
+CHART_TEMPLATE = "plotly_white"
+DEFAULT_HEIGHT = 500
+DEFAULT_MARGIN: dict[str, int] = {"l": 40, "r": 40, "t": 60, "b": 40}
+
+
+def _apply_style(fig: go.Figure) -> go.Figure:
+    fig.update_layout(
+        template=CHART_TEMPLATE,
+        height=DEFAULT_HEIGHT,
+        margin=DEFAULT_MARGIN,
+    )
+    return fig
+
+
+def radar_chart(
+    df: pd.DataFrame,
+    metric_cols: list[str],
+    group_col: str = "run_id",
+) -> go.Figure:
+    fig = go.Figure()
+    available = [c for c in metric_cols if c in df.columns]
+    if not available:
+        return _apply_style(fig)
+
+    for idx, (name, group) in enumerate(df.groupby(group_col)):
+        means = [float(group[col].mean()) for col in available]
+        means.append(means[0])
+        theta = available + [available[0]]
+
+        fig.add_trace(
+            go.Scatterpolar(
+                r=means,
+                theta=theta,
+                fill="toself",
+                name=str(name),
+                line={"color": COLOR_PALETTE[idx % len(COLOR_PALETTE)]},
+            )
+        )
+
+    fig.update_layout(
+        polar={"radialaxis": {"visible": True, "range": [0, 1]}},
+        title="Metric Profile",
+    )
+    return _apply_style(fig)
+
+
+def failure_mode_bars(
+    df: pd.DataFrame,
+    group_col: str = "run_id",
+) -> go.Figure:
+    if "failure_mode" not in df.columns:
+        return _apply_style(go.Figure())
+
+    counts = (
+        df.groupby([group_col, "failure_mode"], dropna=False)
+        .size()
+        .reset_index(name="count")
+    )
+    counts["failure_mode"] = counts["failure_mode"].fillna("none")
+
+    fig = px.bar(
+        counts,
+        x=group_col,
+        y="count",
+        color="failure_mode",
+        barmode="stack",
+        color_discrete_sequence=COLOR_PALETTE,
+        title="Failure Mode Breakdown",
+    )
+    return _apply_style(fig)
+
+
+def box_plots(
+    df: pd.DataFrame,
+    metric_cols: list[str],
+    group_col: str = "run_id",
+) -> go.Figure:
+    available = [c for c in metric_cols if c in df.columns]
+    if not available:
+        return _apply_style(go.Figure())
+
+    melted = df.melt(
+        id_vars=[group_col],
+        value_vars=available,
+        var_name="metric",
+        value_name="value",
+    )
+
+    fig = px.box(
+        melted,
+        x="metric",
+        y="value",
+        color=group_col,
+        color_discrete_sequence=COLOR_PALETTE,
+        title="Score Distributions",
+    )
+    return _apply_style(fig)

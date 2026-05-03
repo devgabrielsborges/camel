@@ -92,14 +92,20 @@ def get_available_models(df: pd.DataFrame) -> list[str]:
 
 def get_filter_options(df: pd.DataFrame) -> dict[str, Any]:
     return {
-        "categories": sorted(df["data_category_QA"].dropna().unique().tolist())
-        if "data_category_QA" in df.columns
-        else [],
-        "languages": sorted(df["language_label"].dropna().unique().tolist())
-        if "language_label" in df.columns
-        else [],
-        "failure_modes": sorted(df["failure_mode"].dropna().unique().tolist())
-        if "failure_mode" in df.columns
-        else [],
+        "categories": (
+            sorted(df["data_category_QA"].dropna().unique().tolist())
+            if "data_category_QA" in df.columns
+            else []
+        ),
+        "languages": (
+            sorted(df["language_label"].dropna().unique().tolist())
+            if "language_label" in df.columns
+            else []
+        ),
+        "failure_modes": (
+            sorted(df["failure_mode"].dropna().unique().tolist())
+            if "failure_mode" in df.columns
+            else []
+        ),
         "models": get_available_models(df),
     }

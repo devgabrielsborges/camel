@@ -88,9 +88,7 @@ def apply_filters(df: pd.DataFrame, filters: dict[str, Any]) -> pd.DataFrame:
     return df[mask].copy()
 
 
-def show_filter_summary(
-    df_original: pd.DataFrame, df_filtered: pd.DataFrame
-) -> None:
+def show_filter_summary(df_original: pd.DataFrame, df_filtered: pd.DataFrame) -> None:
     total = len(df_original)
     filtered = len(df_filtered)
 
