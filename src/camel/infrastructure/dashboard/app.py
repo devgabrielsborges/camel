@@ -9,6 +9,7 @@ import streamlit as st
 from camel.infrastructure.dashboard.charts import (
     box_plots,
     failure_mode_bars,
+    performance_vs_complexity,
     radar_chart,
 )
 from camel.infrastructure.dashboard.data_loader import METRIC_COLS, load_merged_data
@@ -17,7 +18,10 @@ from camel.infrastructure.dashboard.filters import (
     render_sidebar_filters,
     show_filter_summary,
 )
-from camel.infrastructure.dashboard.stats import build_stats_table
+from camel.infrastructure.dashboard.stats import (
+    build_comparison_table,
+    build_stats_table,
+)
 
 _PAGE_TITLE = "CAMEL Evaluation Dashboard"
 _TAB_NAMES = ["Overview", "Comparison", "Distributions", "Failure Modes", "Deep Dive"]
@@ -89,22 +93,48 @@ def _render_overview(tab: st.delta_generator.DeltaGenerator, df: pd.DataFrame) -
         st.plotly_chart(fig, use_container_width=True)
 
 
-def _render_comparison(
-    tab: st.delta_generator.DeltaGenerator, df: pd.DataFrame
-) -> None:
+def _highlight_significant(row: pd.Series) -> list[str]:
+    if row.get("significant", False):
+        return ["background-color: #d4edda"] * len(row)
+    return [""] * len(row)
+
+
+def _render_comparison(tab: st.delta_generator.DeltaGenerator, df: pd.DataFrame) -> None:
     with tab:
         st.header("Statistics")
         available_metrics = [c for c in METRIC_COLS if c in df.columns]
+        models = sorted(df["run_id"].unique())
+
         stats_df = build_stats_table(df, available_metrics)
         if not stats_df.empty:
+            st.subheader("Descriptive Statistics")
             st.dataframe(stats_df, use_container_width=True)
         else:
             st.info("No metrics available for statistics.")
 
+        if len(models) >= 2:
+            st.subheader("Pairwise Comparison")
+            col_a, col_b = st.columns(2)
+            with col_a:
+                model_a = st.selectbox("Model A", models, index=0, key="cmp_model_a")
+            with col_b:
+                default_b = 1 if len(models) > 1 else 0
+                model_b = st.selectbox("Model B", models, index=default_b, key="cmp_model_b")
 
-def _render_distributions(
-    tab: st.delta_generator.DeltaGenerator, df: pd.DataFrame
-) -> None:
+            if model_a == model_b:
+                st.warning("Select two different models to compare.")
+            else:
+                cmp_df = build_comparison_table(
+                    df, available_metrics, model_a=model_a, model_b=model_b
+                )
+                if not cmp_df.empty:
+                    styled = cmp_df.style.apply(_highlight_significant, axis=1)
+                    st.dataframe(styled, use_container_width=True)
+                else:
+                    st.info("No comparison data available.")
+
+
+def _render_distributions(tab: st.delta_generator.DeltaGenerator, df: pd.DataFrame) -> None:
     with tab:
         st.header("Score Distributions")
         available_metrics = [c for c in METRIC_COLS if c in df.columns]
@@ -112,9 +142,7 @@ def _render_distributions(
         st.plotly_chart(fig, use_container_width=True)
 
 
-def _render_failure_modes(
-    tab: st.delta_generator.DeltaGenerator, df: pd.DataFrame
-) -> None:
+def _render_failure_modes(tab: st.delta_generator.DeltaGenerator, df: pd.DataFrame) -> None:
     with tab:
         st.header("Failure Modes")
 
@@ -130,12 +158,18 @@ def _render_failure_modes(
             st.plotly_chart(fig, use_container_width=True)
 
 
-def _render_deep_dive(
-    tab: st.delta_generator.DeltaGenerator, df: pd.DataFrame
-) -> None:
+def _render_deep_dive(tab: st.delta_generator.DeltaGenerator, df: pd.DataFrame) -> None:
     with tab:
         st.header("Deep Dive")
-        st.info("Scatter plots and text inspection coming in a future phase.")
+
+        available_metrics = [c for c in METRIC_COLS if c in df.columns]
+
+        if "input_len" in df.columns and available_metrics:
+            st.subheader("Performance vs Input Complexity")
+            fig = performance_vs_complexity(df, available_metrics)
+            st.plotly_chart(fig, use_container_width=True)
+
+        st.info("Cost-performance scatter and text inspection coming in a future phase.")
 
 
 if __name__ == "__main__":
