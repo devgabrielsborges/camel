@@ -58,11 +58,7 @@ def failure_mode_bars(
     if "failure_mode" not in df.columns:
         return _apply_style(go.Figure())
 
-    counts = (
-        df.groupby([group_col, "failure_mode"], dropna=False)
-        .size()
-        .reset_index(name="count")
-    )
+    counts = df.groupby([group_col, "failure_mode"], dropna=False).size().reset_index(name="count")
     counts["failure_mode"] = counts["failure_mode"].fillna("none")
 
     fig = px.bar(
@@ -100,5 +96,48 @@ def box_plots(
         color=group_col,
         color_discrete_sequence=COLOR_PALETTE,
         title="Score Distributions",
+    )
+    return _apply_style(fig)
+
+
+def performance_vs_complexity(
+    df: pd.DataFrame,
+    metric_cols: list[str],
+    group_col: str = "run_id",
+    n_bins: int = 5,
+) -> go.Figure:
+    if "input_len" not in df.columns:
+        return _apply_style(go.Figure())
+
+    available = [c for c in metric_cols if c in df.columns]
+    if not available:
+        return _apply_style(go.Figure())
+
+    tmp = df.copy()
+    tmp["complexity_bin"] = pd.cut(tmp["input_len"], bins=n_bins)
+    tmp["complexity_bin_label"] = tmp["complexity_bin"].astype(str)
+
+    melted = tmp.melt(
+        id_vars=[group_col, "complexity_bin_label", "complexity_bin"],
+        value_vars=available,
+        var_name="metric",
+        value_name="value",
+    )
+
+    agg = (
+        melted.groupby([group_col, "complexity_bin_label", "metric"], observed=True)["value"]
+        .mean()
+        .reset_index()
+    )
+
+    fig = px.line(
+        agg,
+        x="complexity_bin_label",
+        y="value",
+        color=group_col,
+        facet_col="metric",
+        color_discrete_sequence=COLOR_PALETTE,
+        title="Performance vs Input Complexity",
+        labels={"complexity_bin_label": "Input Length Bin", "value": "Mean Score"},
     )
     return _apply_style(fig)

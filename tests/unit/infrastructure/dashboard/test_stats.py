@@ -7,7 +7,9 @@ import pandas as pd
 import pytest
 
 from camel.infrastructure.dashboard.stats import (
+    build_comparison_table,
     build_stats_table,
+    compute_comparison_stats,
     compute_descriptive_stats,
     compute_z_scores,
 )
@@ -151,3 +153,85 @@ class TestBuildStatsTable:
         table = build_stats_table(df, metric_cols=["x", "nonexistent"])
         assert "x" in table.index
         assert "nonexistent" not in table.index
+
+
+class TestComputeComparisonStats:
+    def test_identical_series(self) -> None:
+        a = pd.Series([1.0, 2.0, 3.0, 4.0, 5.0])
+        b = pd.Series([1.0, 2.0, 3.0, 4.0, 5.0])
+        result = compute_comparison_stats(a, b)
+
+        assert result["delta"] == pytest.approx(0.0)
+        assert result["p_value"] == pytest.approx(1.0)
+        assert result["significant"] is False
+
+    def test_significantly_different_series(self) -> None:
+        a = pd.Series([100.0, 101.0, 102.0, 103.0, 104.0])
+        b = pd.Series([1.0, 2.0, 3.0, 4.0, 5.0])
+        result = compute_comparison_stats(a, b)
+
+        assert result["delta"] == pytest.approx(99.0)
+        assert result["p_value"] < 0.05
+        assert result["significant"] is True
+
+    def test_one_series_too_small_for_ttest(self) -> None:
+        a = pd.Series([5.0])
+        b = pd.Series([1.0, 2.0, 3.0])
+        result = compute_comparison_stats(a, b)
+
+        assert math.isnan(result["p_value"])
+        assert result["significant"] is False
+
+    def test_zero_mean_b_relative_delta_nan(self) -> None:
+        a = pd.Series([1.0, 2.0, 3.0])
+        b = pd.Series([-1.0, 0.0, 1.0])
+        result = compute_comparison_stats(a, b)
+
+        assert result["model_b"]["mean"] == pytest.approx(0.0)
+        assert math.isnan(result["relative_delta_pct"])
+
+    def test_contains_descriptive_stats(self) -> None:
+        a = pd.Series([10.0, 20.0, 30.0])
+        b = pd.Series([5.0, 15.0, 25.0])
+        result = compute_comparison_stats(a, b)
+
+        assert "model_a" in result
+        assert "model_b" in result
+        assert result["model_a"]["mean"] == pytest.approx(20.0)
+        assert result["model_b"]["mean"] == pytest.approx(15.0)
+        assert result["relative_delta_pct"] == pytest.approx((5.0 / 15.0) * 100, abs=0.01)
+
+
+class TestBuildComparisonTable:
+    def test_output_columns(self) -> None:
+        df = pd.DataFrame(
+            {
+                "run_id": ["a"] * 5 + ["b"] * 5,
+                "score": [0.8, 0.9, 0.7, 0.85, 0.75, 0.5, 0.6, 0.4, 0.55, 0.45],
+            }
+        )
+        table = build_comparison_table(df, ["score"], model_a="a", model_b="b")
+
+        expected_cols = {
+            "a_mean",
+            "a_std",
+            "b_mean",
+            "b_std",
+            "delta",
+            "relative_delta_pct",
+            "p_value",
+            "significant",
+        }
+        assert set(table.columns) == expected_cols
+        assert "score" in table.index
+
+    def test_delta_correct(self) -> None:
+        df = pd.DataFrame(
+            {
+                "run_id": ["a"] * 3 + ["b"] * 3,
+                "m": [10.0, 10.0, 10.0, 5.0, 5.0, 5.0],
+            }
+        )
+        table = build_comparison_table(df, ["m"], model_a="a", model_b="b")
+        assert table.loc["m", "delta"] == pytest.approx(5.0)
+        assert table.loc["m", "relative_delta_pct"] == pytest.approx(100.0)
