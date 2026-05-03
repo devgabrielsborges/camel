@@ -5,13 +5,15 @@ from collections import defaultdict
 from camel.domain.entities.evaluation import Evaluation
 from camel.domain.value_objects.category_score_collection import CategoryScoreCollection
 
-_STATISTICAL_METRICS = frozenset({
-    "token_overlap_f1",
-    "refusal_detection",
-    "class_exact_match",
-    "groundedness",
-    "pass_at_k",
-})
+_STATISTICAL_METRICS = frozenset(
+    {
+        "token_overlap_f1",
+        "refusal_detection",
+        "class_exact_match",
+        "groundedness",
+        "pass_at_k",
+    }
+)
 
 
 def collect_raw_scores(evaluation: Evaluation) -> list[CategoryScoreCollection]:
@@ -36,7 +38,11 @@ def collect_raw_scores(evaluation: Evaluation) -> list[CategoryScoreCollection]:
         for metric_name in _STATISTICAL_METRICS:
             score = score_map.get(metric_name)
             if score is not None and score.value is not None:
-                val = 1.0 if score.value is True else (0.0 if score.value is False else float(score.value))
+                val = (
+                    1.0
+                    if score.value is True
+                    else (0.0 if score.value is False else float(score.value))
+                )
                 cat_scores[category][metric_name].append(val)
 
     collections: list[CategoryScoreCollection] = []

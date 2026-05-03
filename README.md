@@ -79,6 +79,7 @@ camel evaluate --help
 camel export --help
 camel prepare --help
 camel dashboard --help
+camel derive-thresholds --help
 ```
 
 ### Options
@@ -90,6 +91,8 @@ camel dashboard --help
 | `--batch-size` | Rows per batch | `$BATCH_SIZE` / 50 |
 | `--concurrency` | Max concurrent calls | `$CONCURRENCY` / 10 |
 | `--no-llm-judge` | Skip LLM scorers | false |
+| `--legacy-verdict` | Skip statistical verdict (legacy only) | false |
+| `--threshold-profile` | Path to ThresholdProfile JSON | `$THRESHOLD_PROFILE_PATH` |
 | `--experiment` | MLflow experiment name | WeniEval |
 | `--output` | JSONL output path | `$RESULTS_DIR`/predictions.jsonl |
 
@@ -143,10 +146,34 @@ Each prediction is classified into one of:
 
 After scoring, the pipeline produces a verdict: **capable**, **not_capable**, or **inconclusive**.
 
-Criteria:
-1. **Positivo**: mean `token_overlap_f1` >= threshold (model can extract answers)
-2. **Negativo**: refusal rate >= threshold OR low overlap (model avoids hallucination)
-3. **Discrimination**: significant delta between positivo/negativo overlap (model differentiates categories)
+#### Legacy Verdict
+
+Fixed-threshold comparison (backward compatible):
+1. **Positivo**: mean `token_overlap_f1` >= threshold
+2. **Negativo**: refusal rate >= threshold OR low overlap
+3. **Discrimination**: significant delta between positivo/negativo overlap
+
+#### Statistical Verdict (v2)
+
+Empirically-derived thresholds with hypothesis testing. Requires a `ThresholdProfile` artifact generated from known-good reference model runs.
+
+**Threshold derivation** — bootstrap resampling (B=10,000) from reference models establishes percentile-based thresholds with 95% confidence intervals:
+
+```bash
+camel derive-thresholds --models gpt-5.4-mini --models gpt-5.4 --models gpt-5.1
+```
+
+**Hypothesis testing** — the pipeline automatically runs the appropriate test for each metric:
+
+| Metric Type | Paired Test | Unpaired Test | Effect Size |
+|-------------|-------------|---------------|-------------|
+| Continuous (`token_overlap_f1`) | Wilcoxon signed-rank | Mann-Whitney U | Cohen's d |
+| Binary (`refusal_detection`) | McNemar's exact | Chi-squared | Odds ratio |
+| Composite (`discrimination_delta`) | Bootstrap CI | Bootstrap CI | Relative diff |
+
+Multiple testing correction via Benjamini-Hochberg (FDR q=0.05). A model is NOT_CAPABLE only when both statistically significant (p < α after BH) AND practically significant (medium/large effect size).
+
+When no `ThresholdProfile` exists, the pipeline falls back to legacy verdict with a warning.
 
 ## Dashboard
 
@@ -235,6 +262,7 @@ All configuration via `.env`. See `.env.example` for the full list.
 | `BATCH_SIZE` | Rows per batch | `50` |
 | `CONCURRENCY` | Max concurrent calls | `10` |
 | `DUCKDB_PATH` | Path to DuckDB database (used by dashboard) | `data/gold/camel.duckdb` |
+| `THRESHOLD_PROFILE_PATH` | Path to ThresholdProfile JSON for statistical verdict | `data/thresholds/profile.json` |
 
 ## Output JSONL
 

@@ -4,12 +4,22 @@ from typing import Any
 
 from pydantic import BaseModel
 
+from camel.domain.value_objects.category_score_collection import CategoryScoreCollection
+from camel.domain.value_objects.metric_threshold import MetricThreshold
+from camel.domain.value_objects.metric_type import MetricType
 from camel.domain.value_objects.pass_at_k_result import PassAtKResult
+from camel.domain.value_objects.test_result import TestResult
+from camel.domain.value_objects.threshold_profile import ThresholdProfile
 
 __all__ = [
+    "CategoryScoreCollection",
     "Chunk",
     "ClassDef",
+    "MetricThreshold",
+    "MetricType",
     "PassAtKResult",
+    "TestResult",
+    "ThresholdProfile",
     "TokenUsage",
     "ToolCall",
 ]
