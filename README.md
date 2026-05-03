@@ -1,4 +1,4 @@
-# CAMEL — AI Agent Evaluation Pipeline
+# CAMEL — Capability Assessment Methodology for Evaluating LLMs
 
 End-to-end pipeline for evaluating Q&A chatbot agents using the
 [WeniEval Benchmark 2.0](https://huggingface.co/datasets/Weni/WeniEval-Benchmark-2.0.0).
@@ -59,7 +59,7 @@ camel run --limit 100
 ```
 
 Runs inference, evaluation, and export in sequence.
-Results written to `$RESULTS_DIR/predictions.csv`.
+Results appended to `$RESULTS_DIR/predictions.jsonl`.
 
 ### Individual Commands
 
@@ -90,7 +90,7 @@ camel prepare --help
 | `--concurrency` | Max concurrent calls | `$CONCURRENCY` / 10 |
 | `--no-llm-judge` | Skip LLM scorers | false |
 | `--experiment` | MLflow experiment name | WeniEval |
-| `--output` | CSV output path | `$RESULTS_DIR`/predictions.csv |
+| `--output` | JSONL output path | `$RESULTS_DIR`/predictions.jsonl |
 
 ### LiteLLM Support
 
