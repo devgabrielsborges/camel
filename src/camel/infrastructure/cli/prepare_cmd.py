@@ -138,7 +138,10 @@ def _run_dbt(gold: bool) -> None:
 
     typer.echo(f"Running dbt ({'bronze + silver + gold' if gold else 'bronze + silver'})...")
 
-    result = subprocess.run(cmd, cwd=str(dbt_dir), capture_output=True, text=True)
+    env = os.environ.copy()
+    env.pop("DUCKDB_PATH", None)
+
+    result = subprocess.run(cmd, cwd=str(dbt_dir), capture_output=True, text=True, env=env)
 
     if result.returncode != 0:
         typer.echo("dbt run failed:", err=True)
