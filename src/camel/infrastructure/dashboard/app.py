@@ -27,7 +27,15 @@ from camel.infrastructure.dashboard.stats import (
 _GROUP_COL = "model_label"
 _MAX_RADAR_MODELS = 4
 _PAGE_TITLE = "CAMEL Evaluation Dashboard"
-_TAB_NAMES = ["Overview", "Comparison", "Distributions", "Failure Modes", "Deep Dive"]
+_TAB_NAMES = [
+    "Overview",
+    "Comparison",
+    "Distributions",
+    "Cost vs Performance",
+    "Complexity",
+    "Failure Modes",
+    "Deep Dive",
+]
 
 
 def _parse_args() -> str:
@@ -78,8 +86,10 @@ def main() -> None:
     _render_overview(tabs[0], df_filtered)
     _render_comparison(tabs[1], df_filtered)
     _render_distributions(tabs[2], df_filtered)
-    _render_failure_modes(tabs[3], df_filtered)
-    _render_deep_dive(tabs[4], df_filtered)
+    _render_cost_performance(tabs[3], df_filtered)
+    _render_complexity(tabs[4], df_filtered)
+    _render_failure_modes(tabs[5], df_filtered)
+    _render_deep_dive(tabs[6], df_filtered)
 
 
 def _get_available_metrics(df: pd.DataFrame) -> list[str]:
@@ -217,37 +227,50 @@ def _render_sankey_section(df: pd.DataFrame) -> None:
         st.plotly_chart(fig, use_container_width=True)
 
 
+def _render_cost_performance(tab: st.delta_generator.DeltaGenerator, df: pd.DataFrame) -> None:
+    with tab:
+        st.header("Cost-Performance Scatter")
+        available_metrics = _get_available_metrics(df)
+
+        if "output_len" not in df.columns or not available_metrics:
+            st.info("Cost-performance scatter requires output_len and at least one metric.")
+            return
+
+        scatter_cols = st.columns(2)
+        with scatter_cols[0]:
+            x_col = st.selectbox(
+                "X-axis (cost proxy)",
+                ["output_len", "input_len"],
+                index=0,
+                key="scatter_x",
+            )
+        with scatter_cols[1]:
+            y_col = st.selectbox(
+                "Y-axis (metric)",
+                available_metrics,
+                index=0,
+                key="scatter_y",
+            )
+        fig = cost_performance_scatter(df, x_col=x_col, y_col=y_col, color_col=_GROUP_COL)
+        st.plotly_chart(fig, use_container_width=True)
+
+
+def _render_complexity(tab: st.delta_generator.DeltaGenerator, df: pd.DataFrame) -> None:
+    with tab:
+        st.header("Performance vs Complexity")
+        available_metrics = _get_available_metrics(df)
+
+        if "input_len" not in df.columns or not available_metrics:
+            st.info("Complexity chart requires input_len and at least one metric.")
+            return
+
+        fig = performance_vs_complexity(df, available_metrics, group_col=_GROUP_COL)
+        st.plotly_chart(fig, use_container_width=True)
+
+
 def _render_deep_dive(tab: st.delta_generator.DeltaGenerator, df: pd.DataFrame) -> None:
     with tab:
         st.header("Deep Dive")
-
-        available_metrics = _get_available_metrics(df)
-
-        if "output_len" in df.columns and available_metrics:
-            st.subheader("Cost-Performance Scatter")
-            scatter_cols = st.columns(2)
-            with scatter_cols[0]:
-                x_col = st.selectbox(
-                    "X-axis (cost proxy)",
-                    ["output_len", "input_len"],
-                    index=0,
-                    key="scatter_x",
-                )
-            with scatter_cols[1]:
-                y_col = st.selectbox(
-                    "Y-axis (metric)",
-                    available_metrics,
-                    index=0,
-                    key="scatter_y",
-                )
-            fig = cost_performance_scatter(df, x_col=x_col, y_col=y_col, color_col=_GROUP_COL)
-            st.plotly_chart(fig, use_container_width=True)
-
-        if "input_len" in df.columns and available_metrics:
-            st.subheader("Performance vs Input Complexity")
-            fig = performance_vs_complexity(df, available_metrics, group_col=_GROUP_COL)
-            st.plotly_chart(fig, use_container_width=True)
-
         _render_session_inspector(df)
 
 
