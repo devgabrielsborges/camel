@@ -3,6 +3,9 @@
 </p>
 
 <h1 align="center">CAMEL</h1>
+<p align="center">
+  <img src="https://img.shields.io/badge/version-0.1.0-blue" alt="Version">
+</p>
 <p align="center"><strong>Capability Assessment Methodology for Evaluating Large Language Models</strong></p>
 
 <p align="center">
