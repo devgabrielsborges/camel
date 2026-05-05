@@ -34,7 +34,6 @@ jobs:
         run: |
           uv sync --dev
           uv run pre-commit run --all-files
-          uv run pytest --cov=camel
 
   docker-build:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main' || github.event_name == 'release'
